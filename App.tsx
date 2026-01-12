@@ -6,6 +6,7 @@ import Sales from './components/Sales.tsx';
 import Expenses from './components/Expenses.tsx';
 import HeldOrders from './components/HeldOrders.tsx';
 import LbcBooking from './components/LbcBooking.tsx';
+import Settings from './components/Settings.tsx';
 import { loadState, saveState } from './services/storageService.ts';
 import { AppState, InventoryItem, Sale, Expense, ShippingBatch } from './types.ts';
 
@@ -59,6 +60,12 @@ const App: React.FC = () => {
 
   const updateCategories = (newCategories: string[]) => {
     setData(prev => ({ ...prev, categories: newCategories }));
+  };
+
+  // Full state restore
+  const handleImport = (importedData: AppState) => {
+      setData(importedData);
+      saveState(importedData); // Force immediate save
   };
 
   const updateInventoryStock = (itemId: string, qtyDelta: number) => {
@@ -121,6 +128,11 @@ const App: React.FC = () => {
           setBudgets={updateBudgets}
           categories={data.categories}
           setCategories={updateCategories}
+        />;
+      case 'settings':
+        return <Settings 
+          data={data}
+          onImport={handleImport}
         />;
       default:
         return <Dashboard data={data} setActiveTab={setActiveTab} />;

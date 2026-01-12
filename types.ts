@@ -68,4 +68,5 @@ export interface AppState {
     costPerUnit: number;
     unitsPerItem: number; 
   };
+  googleSheetsUrl?: string;
 }

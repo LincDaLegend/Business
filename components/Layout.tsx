@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Package, ShoppingCart, Menu, X, Box, Receipt, PackageOpen, Truck } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Menu, X, Box, Receipt, PackageOpen, Truck, Settings } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -17,6 +17,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     { id: 'held-orders', label: 'Packages on Hold', icon: PackageOpen },
     { id: 'expenses', label: 'Expenses', icon: Receipt },
     { id: 'lbc-booking', label: 'LBC Integration', icon: Truck },
+    { id: 'settings', label: 'Settings & Data', icon: Settings },
   ];
 
   return (

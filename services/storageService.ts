@@ -2,6 +2,9 @@ import { AppState, InventoryItem, Sale, Expense, SaleStatus, PaymentStatus } fro
 
 const STORAGE_KEY = 'biztrack_data_v3'; // Bumped version
 
+// The user provided Google Apps Script Web App URL
+const DEFAULT_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyuUUUwB6SLKvI9Vayv-DDTux-Mt1JyVYsdkxj41niHRMBshjkEHNyhp7aQGpFDmdNYbw/exec';
+
 const defaultState: AppState = {
   inventory: [
     { id: '1', name: 'Vintage Lens 50mm', sku: 'VL-001', quantity: 1, costPrice: 45.00, price: 150.00, category: 'Photography', batchCode: 'BATCH-001' },
@@ -35,7 +38,8 @@ const defaultState: AppState = {
     totalQuantity: 100,
     costPerUnit: 0.50,
     unitsPerItem: 1
-  }
+  },
+  googleSheetsUrl: DEFAULT_SHEETS_URL
 };
 
 export const loadState = (): AppState => {
@@ -73,6 +77,10 @@ export const loadState = (): AppState => {
     }
     if (!loadedState.categories || !Array.isArray(loadedState.categories)) {
       loadedState.categories = ['Food', 'Essentials', 'Operating Expenses', 'Investment', 'Give'];
+    }
+    // Automatically set the URL if it's missing or empty
+    if (!loadedState.googleSheetsUrl) {
+      loadedState.googleSheetsUrl = DEFAULT_SHEETS_URL;
     }
     
     return loadedState;
