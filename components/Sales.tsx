@@ -3,7 +3,7 @@ import { Sale, InventoryItem, SaleStatus, PaymentStatus, SaleType, ShippingBatch
 import { 
   ShoppingCart, Plus, Search, 
   Filter, CheckCircle2, XCircle, ChevronDown,
-  ArrowRightLeft, Box, DollarSign, Calendar
+  ArrowRightLeft, Box, DollarSign, Calendar, Trash2
 } from 'lucide-react';
 
 interface SalesProps {
@@ -11,12 +11,13 @@ interface SalesProps {
   inventory: InventoryItem[];
   setSales: (sales: Sale[]) => void;
   updateInventoryStock: (itemId: string, qtyDelta: number) => void;
+  deleteSale: (saleId: string) => void;
   supplies: { totalQuantity: number; costPerUnit: number; unitsPerItem: number };
   setSupplies: (supplies: { totalQuantity: number; costPerUnit: number; unitsPerItem: number }) => void;
   shippingBatches: ShippingBatch[];
 }
 
-const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInventoryStock }) => {
+const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInventoryStock, deleteSale }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Filters
@@ -103,6 +104,12 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
       setSales(sales.map(s => s.id === id ? { ...s, status: newStatus } : s));
   };
 
+  const handleDelete = (sale: Sale) => {
+    if (window.confirm(`Are you sure you want to delete the sale for "${sale.itemName}"? This will restore ${sale.quantity} unit(s) to inventory.`)) {
+      deleteSale(sale.id);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -159,11 +166,12 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
                         <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase tracking-wider text-center">Payment</th>
                         <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase tracking-wider text-center">Shipping</th>
                         <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase tracking-wider text-right">Amount</th>
+                        <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase tracking-wider text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                     {displayedSales.length === 0 ? (
-                        <tr><td colSpan={6} className="p-8 text-center text-slate-400">No sales found matching your filters.</td></tr>
+                        <tr><td colSpan={7} className="p-8 text-center text-slate-400">No sales found matching your filters.</td></tr>
                     ) : (
                         displayedSales.map(sale => (
                             <tr key={sale.id} className="hover:bg-slate-50 transition-colors">
@@ -240,6 +248,16 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
 
                                 <td className="px-6 py-5 text-right font-black text-slate-900 text-lg">
                                     ₱{sale.totalAmount.toLocaleString()}
+                                </td>
+
+                                <td className="px-6 py-5 text-center">
+                                    <button 
+                                        onClick={() => handleDelete(sale)}
+                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Delete Record"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
                                 </td>
                             </tr>
                         ))

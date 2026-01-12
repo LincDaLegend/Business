@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { AppState } from '../types.ts';
+import { AppState, SaleStatus } from '../types.ts';
 import { Download, Upload, FileSpreadsheet, Database, AlertTriangle, Save, Copy, Check, Cloud, ChevronDown, ChevronUp, Link as LinkIcon, RefreshCw } from 'lucide-react';
 
 interface SettingsProps {
@@ -150,6 +150,13 @@ const Settings: React.FC<SettingsProps> = ({ data, onImport }) => {
                   unitPrice: s.unitPrice,
                   totalAmount: s.totalAmount
               })),
+              shipped: data.sales.filter(s => s.status === SaleStatus.SHIPPED).map(s => ({
+                  date: new Date(s.date).toLocaleDateString(),
+                  itemName: s.itemName,
+                  customerName: s.customerName,
+                  quantity: s.quantity,
+                  shippingDetails: s.shippingDetails || ''
+              })),
               inventory: data.inventory.map(i => ({
                   name: i.name,
                   sku: i.sku,
@@ -167,23 +174,20 @@ const Settings: React.FC<SettingsProps> = ({ data, onImport }) => {
               }))
           };
 
-          // Using no-cors mode because Google Apps Script doesn't always handle CORS headers perfectly for simple POSTs 
-          // unless handled very specifically in the script. 
-          // 'no-cors' means we won't get a readable response content, but the request will send.
+          // Use 'text/plain' to avoid CORS Preflight (OPTIONS) request which GAS doesn't handle
           await fetch(scriptUrl, {
               method: 'POST',
               mode: 'no-cors', 
               headers: {
-                  'Content-Type': 'application/json',
+                  'Content-Type': 'text/plain',
               },
               body: JSON.stringify(payload)
           });
           
-          // Since we use no-cors, we assume success if no network error thrown
-          alert("Sync initiated! Check your Google Sheet in a few moments.");
+          alert("Sync sent! Please check your Google Sheet.");
       } catch (error) {
           console.error(error);
-          alert("Sync failed. Please check the URL and your internet connection.");
+          alert("Sync failed. Check console for details.");
       } finally {
           setIsSyncing(false);
       }
@@ -194,6 +198,7 @@ const Settings: React.FC<SettingsProps> = ({ data, onImport }) => {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   
   if (data.sales) updateSheet(ss, 'Sales', ['Date', 'Item', 'Customer', 'Type', 'Status', 'Payment', 'Qty', 'Unit Price', 'Total'], data.sales.map(s => [s.date, s.itemName, s.customerName, s.saleType, s.status, s.paymentStatus, s.quantity, s.unitPrice, s.totalAmount]));
+  if (data.shipped) updateSheet(ss, 'Shipped Items', ['Date', 'Item', 'Customer', 'Qty', 'Shipping Details'], data.shipped.map(s => [s.date, s.itemName, s.customerName, s.quantity, s.shippingDetails]));
   if (data.inventory) updateSheet(ss, 'Inventory', ['Item Name', 'SKU', 'Category', 'Stock', 'Cost', 'Price', 'Batch'], data.inventory.map(i => [i.name, i.sku, i.category, i.quantity, i.costPrice, i.price, i.batchCode]));
   if (data.expenses) updateSheet(ss, 'Expenses', ['Date', 'Description', 'Category', 'Amount'], data.expenses.map(e => [e.date, e.description, e.category, e.amount]));
 
@@ -255,21 +260,24 @@ function updateSheet(ss, sheetName, headers, rows) {
                         onClick={() => setIsInstructionsOpen(!isInstructionsOpen)}
                         className="w-full flex justify-between items-center p-4 text-left font-bold text-blue-800 text-sm hover:bg-blue-100 transition-colors"
                      >
-                        <span>How to set this up? (One-time setup)</span>
+                        <span>How to set this up? (Update Required!)</span>
                         {isInstructionsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                      </button>
                      
                      {isInstructionsOpen && (
                          <div className="p-4 bg-white border-t border-blue-100 text-sm text-slate-600 space-y-4">
+                             <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs font-bold mb-2">
+                                 Note: The script has been updated to include 'Shipped Items'. Please update your Google Apps Script.
+                             </div>
                              <ol className="list-decimal pl-5 space-y-2">
-                                 <li>Create a new <strong>Google Sheet</strong>.</li>
+                                 <li>Open your existing <strong>Google Sheet</strong>.</li>
                                  <li>Go to <strong>Extensions</strong> &gt; <strong>Apps Script</strong>.</li>
-                                 <li>Delete any code there and paste the script below.</li>
-                                 <li>Click <strong>Deploy</strong> &gt; <strong>New deployment</strong>.</li>
+                                 <li><strong>Delete all existing code</strong> and paste the new script below.</li>
+                                 <li>Click <strong>Deploy</strong> &gt; <strong>New deployment</strong> (Important: Create a NEW deployment, don't just save).</li>
                                  <li>Select type: <strong>Web app</strong>.</li>
-                                 <li>Set <strong>Who has access</strong> to: <strong>Anyone</strong> (Important!).</li>
-                                 <li>Click <strong>Deploy</strong> and copy the <strong>Web App URL</strong>.</li>
-                                 <li>Paste the URL in the box above and click Save.</li>
+                                 <li>Set <strong>Who has access</strong> to: <strong>Anyone</strong>.</li>
+                                 <li>Click <strong>Deploy</strong> and copy the <strong>NEW Web App URL</strong>.</li>
+                                 <li>Paste the new URL above and click Save.</li>
                              </ol>
                              
                              <div className="relative group">

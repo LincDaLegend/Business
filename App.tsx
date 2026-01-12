@@ -69,13 +69,43 @@ const App: React.FC = () => {
   };
 
   const updateInventoryStock = (itemId: string, qtyDelta: number) => {
-    const updatedInventory = data.inventory.map(item => {
-      if (item.id === itemId) {
-        return { ...item, quantity: item.quantity + qtyDelta };
-      }
-      return item;
+    setData(prev => {
+        const updatedInventory = prev.inventory.map(item => {
+            if (item.id === itemId) {
+                return { ...item, quantity: item.quantity + qtyDelta };
+            }
+            return item;
+        });
+        return { ...prev, inventory: updatedInventory };
     });
-    setData(prev => ({ ...prev, inventory: updatedInventory }));
+  };
+
+  // Atomic delete operation to ensure consistency
+  // Uses functional update pattern to avoid stale state closures
+  const deleteSale = (saleId: string) => {
+    setData(prevData => {
+        const saleToDelete = prevData.sales.find(s => s.id === saleId);
+        
+        // If sale not found, return previous state without changes
+        if (!saleToDelete) return prevData;
+
+        // Restore inventory
+        const updatedInventory = prevData.inventory.map(item => {
+            if (item.id === saleToDelete.itemId) {
+                return { ...item, quantity: item.quantity + saleToDelete.quantity };
+            }
+            return item;
+        });
+
+        // Remove sale
+        const updatedSales = prevData.sales.filter(s => s.id !== saleId);
+
+        return {
+            ...prevData,
+            inventory: updatedInventory,
+            sales: updatedSales
+        };
+    });
   };
 
   // Handler to navigate to LBC booking with a customer selected
@@ -103,6 +133,7 @@ const App: React.FC = () => {
           inventory={data.inventory} 
           setSales={updateSales} 
           updateInventoryStock={updateInventoryStock}
+          deleteSale={deleteSale}
           supplies={data.supplies}
           setSupplies={updateSupplies}
           shippingBatches={data.shippingBatches}
