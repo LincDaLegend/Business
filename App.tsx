@@ -8,11 +8,12 @@ import HeldOrders from './components/HeldOrders.tsx';
 import LbcBooking from './components/LbcBooking.tsx';
 import Settings from './components/Settings.tsx';
 import { loadState, saveState } from './services/storageService.ts';
-import { AppState, InventoryItem, Sale, Expense, ShippingBatch } from './types.ts';
+import { AppState, InventoryItem, Sale, Expense, ShippingBatch, SaleStatus } from './types.ts';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [data, setData] = useState<AppState>(loadState());
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // State to handle deep-linking to LBC Booking for a specific customer
   const [lbcPreselectedCustomer, setLbcPreselectedCustomer] = useState<string | null>(null);
@@ -108,6 +109,67 @@ const App: React.FC = () => {
     });
   };
 
+  const handleSync = async () => {
+    const scriptUrl = data.googleSheetsUrl;
+    if (!scriptUrl) {
+        alert("Please configure the Google Apps Script URL in Settings first.");
+        setActiveTab('settings');
+        return;
+    }
+    setIsSyncing(true);
+    try {
+        const payload = {
+            sales: data.sales.map(s => ({
+                date: new Date(s.date).toLocaleDateString(),
+                itemName: s.itemName,
+                customerName: s.customerName,
+                saleType: s.saleType,
+                status: s.status,
+                paymentStatus: s.paymentStatus,
+                quantity: s.quantity,
+                unitPrice: s.unitPrice,
+                totalAmount: s.totalAmount
+            })),
+            shipped: data.sales.filter(s => s.status === SaleStatus.SHIPPED).map(s => ({
+                date: new Date(s.date).toLocaleDateString(),
+                itemName: s.itemName,
+                customerName: s.customerName,
+                quantity: s.quantity,
+                shippingDetails: s.shippingDetails || ''
+            })),
+            inventory: data.inventory.map(i => ({
+                name: i.name,
+                sku: i.sku,
+                category: i.category,
+                quantity: i.quantity,
+                costPrice: i.costPrice,
+                price: i.price,
+                batchCode: i.batchCode || ''
+            })),
+            expenses: data.expenses.map(e => ({
+                date: new Date(e.date).toLocaleDateString(),
+                description: e.description,
+                category: e.category,
+                amount: e.amount
+            }))
+        };
+
+        await fetch(scriptUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(payload)
+        });
+
+        alert("Sync sent! Please check your Google Sheet.");
+    } catch (error) {
+        console.error(error);
+        alert("Sync failed. Check console for details.");
+    } finally {
+        setIsSyncing(false);
+    }
+  };
+
   // Handler to navigate to LBC booking with a customer selected
   const handleNavigateToLbc = (customerName: string) => {
     setLbcPreselectedCustomer(customerName);
@@ -171,7 +233,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
+    <Layout activeTab={activeTab} setActiveTab={setActiveTab} onSync={handleSync} isSyncing={isSyncing}>
       {renderContent()}
     </Layout>
   );
