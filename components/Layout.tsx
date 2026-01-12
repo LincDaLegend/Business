@@ -41,7 +41,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                 </div>
                 <div className="flex flex-col items-start -space-y-0.5 pt-1">
                     <span className="text-2xl text-slate-900 leading-none font-extrabold tracking-tight font-['Outfit']">BOGART</span>
-                    <span className="text-[10px] font-bold text-emerald-600 uppercase leading-tight tracking-[0.15em] font-['Outfit']">TRADING CO.</span>
+                    <span className="text-[10px] font-bold text-emerald-600 uppercase leading-tight tracking-[0.15em] font-['Outfit']">MAKES BANDS</span>
                 </div>
             </div>
             <button onClick={() => setSidebarOpen(false)} className="ml-auto lg:hidden text-slate-400 hover:text-slate-600 absolute right-4 top-8">
@@ -93,7 +93,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
               </div>
               <div className="flex flex-col items-start -space-y-0.5 pt-1">
                   <span className="text-xl text-slate-900 leading-none font-extrabold tracking-tight font-['Outfit']">BOGART</span>
-                  <span className="text-[9px] font-bold text-emerald-600 uppercase leading-tight tracking-[0.15em] font-['Outfit']">TRADING CO.</span>
+                  <span className="text-[9px] font-bold text-emerald-600 uppercase leading-tight tracking-[0.15em] font-['Outfit']">MAKES BANDS</span>
               </div>
           </div>
           
