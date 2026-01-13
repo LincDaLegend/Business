@@ -12,7 +12,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       // This maps process.env.API_KEY in your code to the actual environment variable
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      // Supports both API_KEY and GEMINI_API_KEY for compatibility
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || env.GEMINI_API_KEY)
     }
   }
 })
