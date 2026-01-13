@@ -56,79 +56,198 @@ export const analyzeBusinessData = async (data: AppState): Promise<string> => {
   }
 };
 
-export const parseSmartImport = async (text: string, type: 'inventory' | 'sales'): Promise<any[]> => {
+interface SmartImportOptions {
+    text?: string;
+    files?: { data: string; mimeType: string }[]; 
+    type: 'inventory' | 'sales';
+    totalCost?: number;
+}
+
+export const parseSmartImport = async ({ text, files, type, totalCost }: SmartImportOptions): Promise<any[]> => {
   try {
     const apiKey = process.env.API_KEY;
     if (!apiKey) throw new Error("API Key not found");
     const ai = new GoogleGenAI({ apiKey });
 
+    // Use Gemini 3 Flash for speed + visual capability
     const model = 'gemini-3-flash-preview'; 
+    
     let systemInstruction = "";
     let responseSchema = undefined;
+    let thinkingBudget = 0; // Default off
 
     if (type === 'inventory') {
+        // Enable thinking for inventory to help with counting cards in images
+        thinkingBudget = 2048; 
+        
         systemInstruction = `
-            You are a data extraction assistant specialized in parsing "Purchase History" or "Order Details" pages from eBay, Amazon, or suppliers.
+            You are an expert Computer Vision System specializing in Trading Cards (Sports, TCG, Pokemon).
+            Your goal is to extract a CLEAN, DEDUPLICATED list of items from the image.
+
+            **PHASE 1: VISUAL DEDUPLICATION (CRITICAL)**
+            - **Glare & Reflections**: Glossy cards often have bright reflections. Do NOT count a reflection as a second card.
+            - **Sleeves/Toploaders**: If you see an empty sleeve or top loader, ignore it.
+            - **Partial Cards**: If a card is cut off by the edge of the image but recognizable, count it.
+            - **Duplicates**: Only list \`quantity > 1\` if you see physically distinct copies. If you see the *same* card twice due to a montage or bad photo stitch, treat it as 1.
+
+            **PHASE 2: DATA EXTRACTION**
+            For each UNIQUE card found:
+            1. **Name**: Combine Year, Set, Player Name, and Variant.
+               - Format: "{Year} {Set} {Player} {Serial/Variant}"
+               - Example: "2023 Prizm Victor Wembanyama Silver"
+               - NEVER use the word "Insert".
+            2. **Market Valuation (CRITICAL for Costing)**:
+               - You MUST estimate the current market value (USD) for this specific card in its visible condition (Raw vs Graded).
+               - Be realistic. A base card might be $1, a numbered auto might be $200.
+               - This \`estimatedValue\` determines how the user's total cost is split.
+
+            **PHASE 3: OUTPUT**
+            - Return a JSON array.
+            - Do not group distinct cards into "Lots". 1 Card = 1 JSON Object.
+        `;
+        
+        responseSchema = {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    name: { type: Type.STRING, description: "Year + Set + Player + Serial (No 'Insert')" },
+                    sku: { type: Type.STRING },
+                    quantity: { type: Type.NUMBER, description: "1 per visual card, unless stacked" },
+                    estimatedValue: { type: Type.NUMBER, description: "Estimated Market Value in USD (Required for weighted costing)" },
+                    category: { type: Type.STRING }
+                },
+                required: ["name", "quantity", "estimatedValue"]
+            }
+        };
+    } else {
+        // Sales parsing usually requires less "visual counting" and more "text field extraction",
+        // but thinking helps with complex invoices too.
+        thinkingBudget = 1024;
+        
+        systemInstruction = `
+            You are a data extraction assistant. 
+            Extract sales orders from the input (eBay "Sold" page, Invoice PDF, or Spreadsheet text).
             
             RULES:
             1. Extract the Item Name.
-            2. Extract the Price paid. Map this to 'costPrice'.
-            3. Automatically calculate a 'price' (Selling Price) that is 30% higher than the 'costPrice'.
-            4. If a SKU is missing, generate a short logical one based on the name.
-            5. Default Quantity = 1 if not specified.
-            6. Map the category to a general guess based on the item name.
+            2. Extract the Customer Name/Username.
+            3. Extract the Total Price. 
+            4. Extract the Quantity (default 1).
+            5. Extract the Date. If specific date found, use ISO YYYY-MM-DD. If relative (e.g. "Sold yesterday"), calculate from today.
+            6. DETECT STATUS: 
+               - If "Shipped", "Delivered", or "Tracking", status = 'Shipped'.
+               - If "Paid" but not shipped, status = 'To Ship'.
+               - Otherwise 'On Hold'.
+            7. **Deduplication**: If the input contains overlapping screenshots, ensure each unique sale is listed only once.
             
-            Return a JSON array of InventoryItems.
+            Return a JSON array of Sales.
         `;
         responseSchema = {
             type: Type.ARRAY,
             items: {
                 type: Type.OBJECT,
                 properties: {
-                    name: { type: Type.STRING },
-                    sku: { type: Type.STRING },
-                    quantity: { type: Type.NUMBER },
-                    price: { type: Type.NUMBER, description: "Selling Price (Cost + 30%)" },
-                    costPrice: { type: Type.NUMBER, description: "The actual price paid for the item" },
-                    category: { type: Type.STRING }
-                },
-                required: ["name", "price", "costPrice", "quantity"]
-            }
-        };
-    } else {
-        systemInstruction = "You are a data extraction assistant. Extract sales records from unstructured text (like a copied order list). Map 'Item' to itemName, 'Buyer' to customerName. If date is missing, use today's date (YYYY-MM-DD). Return a JSON array.";
-        responseSchema = {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    date: { type: Type.STRING, description: "ISO Date string YYYY-MM-DD" },
+                    date: { type: Type.STRING, description: "YYYY-MM-DD" },
                     itemName: { type: Type.STRING },
                     customerName: { type: Type.STRING },
                     quantity: { type: Type.NUMBER },
-                    unitPrice: { type: Type.NUMBER },
-                    totalAmount: { type: Type.NUMBER }
+                    totalAmount: { type: Type.NUMBER },
+                    status: { type: Type.STRING, enum: ["Shipped", "To Ship", "On Hold"] }
                 },
-                required: ["itemName", "totalAmount"]
+                required: ["itemName", "totalAmount", "status"]
             }
         };
     }
 
+    // Prepare content parts
+    const parts: any[] = [];
+    if (text) {
+        parts.push({ text: text });
+    }
+    
+    // Handle multiple files
+    if (files && files.length > 0) {
+        files.forEach(file => {
+            // Strip base64 header if present
+            const base64Clean = file.data.includes('base64,') ? file.data.split('base64,')[1] : file.data;
+            parts.push({
+                inlineData: {
+                    mimeType: file.mimeType,
+                    data: base64Clean
+                }
+            });
+        });
+    }
+
+    if (parts.length === 0) throw new Error("No input provided");
+
     const response = await ai.models.generateContent({
         model,
-        contents: text,
+        contents: { parts },
         config: {
             systemInstruction,
             responseMimeType: "application/json",
-            responseSchema: responseSchema
+            responseSchema: responseSchema,
+            thinkingConfig: thinkingBudget > 0 ? { thinkingBudget } : undefined
         }
     });
 
     const jsonText = response.text || "[]";
-    return JSON.parse(jsonText);
+    // Clean up potential markdown code blocks (e.g., ```json ... ```)
+    const cleanJson = jsonText.replace(/```json|```/g, '').trim();
+    const parsedItems = JSON.parse(cleanJson);
 
-  } catch (error) {
-    console.error("Smart Import Error", error);
+    // --- POST-PROCESSING: WEIGHTED COST DISTRIBUTION ---
+    if (type === 'inventory' && Array.isArray(parsedItems)) {
+        // Calculate total estimated market value of the batch
+        // We use a small epsilon 0.01 to prevent division by zero if AI returns all 0s
+        const totalMarketValue = parsedItems.reduce((acc: number, i: any) => acc + (i.estimatedValue || 0), 0);
+        const hasValidValuation = totalMarketValue > 0;
+
+        return parsedItems.map(item => {
+            let calculatedCost = 0;
+            let calculatedPrice = 0;
+
+            // WEIGHTED LOGIC:
+            if (totalCost && totalCost > 0) {
+                if (hasValidValuation && (item.estimatedValue || 0) > 0) {
+                     // Weight = (Item Value / Total Batch Value)
+                     const weight = item.estimatedValue / totalMarketValue;
+                     calculatedCost = weight * totalCost;
+                } else {
+                     // Fallback: Even split if values missing or totalMarketValue is 0
+                     calculatedCost = totalCost / parsedItems.length;
+                }
+            }
+            
+            // Set Selling Price
+            // If AI gave us a Market Value, we can use that as the base Price, otherwise Cost * 1.3
+            if (item.estimatedValue && item.estimatedValue > 0) {
+                // If we know the user's exchange rate, we should ideally convert this USD estimated value to PHP.
+                // However, `estimatedValue` from AI is just a number. 
+                // We'll trust the AI's number as the base "Price" if available, 
+                // but usually the AI returns USD while the app runs in PHP (mostly).
+                // For safety, we stick to margin-based pricing OR use the estimated value if it seems high enough to be PHP (unlikely with prompts asking for USD).
+                // Let's stick to a safe margin: Cost * 1.3, unless estimatedValue * exchange_rate is significantly higher. 
+                // Since we don't have rate here easily, we use simple margin.
+                calculatedPrice = calculatedCost > 0 ? calculatedCost * 1.3 : (item.estimatedValue * 58); // Rough fallback conversion
+            } else {
+                calculatedPrice = calculatedCost > 0 ? calculatedCost * 1.3 : 0;
+            }
+
+            return {
+                ...item,
+                costPrice: parseFloat(calculatedCost.toFixed(2)),
+                price: parseFloat(calculatedPrice.toFixed(2))
+            };
+        });
+    }
+
+    return parsedItems;
+
+  } catch (error: any) {
+    console.error("Smart Import Error details:", error.message || error);
     return [];
   }
 };

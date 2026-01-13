@@ -1,12 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Sale, InventoryItem, SaleStatus, PaymentStatus, SaleType, ShippingBatch, AppState } from '../types.ts';
 import { 
   ShoppingCart, Plus, Search, 
   Filter, CheckCircle2, XCircle, ChevronDown,
-  ArrowRightLeft, Box, DollarSign, Calendar, Trash2, FileSpreadsheet, Clipboard, RefreshCw, X, Globe, Lock, AlertCircle
+  ArrowRightLeft, Box, DollarSign, Calendar, Trash2, FileSpreadsheet, Clipboard, RefreshCw, X, Globe, Lock, AlertCircle, Sparkles, UploadCloud, FileText, Image as ImageIcon
 } from 'lucide-react';
 import { parseSalesImport } from '../services/importService.ts';
 import { loadState } from '../services/storageService.ts';
+import { parseSmartImport } from '../services/geminiService.ts';
 
 interface SalesProps {
   sales: Sale[];
@@ -24,6 +25,13 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isEbayModalOpen, setIsEbayModalOpen] = useState(false);
   
+  // Smart Source State
+  const [isSmartSourceOpen, setIsSmartSourceOpen] = useState(false);
+  const [smartInput, setSmartInput] = useState('');
+  const [smartFiles, setSmartFiles] = useState<{name: string, data: string, type: string}[]>([]);
+  const [isProcessingSmart, setIsProcessingSmart] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // eBay State
   const [ebayToken, setEbayToken] = useState('');
   const [isFetchingEbay, setIsFetchingEbay] = useState(false);
@@ -205,6 +213,79 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
       }
   };
 
+  // --- SMART SOURCE LOGIC (One-Click / File / Paste) ---
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+
+      Array.from(files).forEach((file: File) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              const result = event.target?.result as string;
+              setSmartFiles(prev => [...prev, {
+                  name: file.name,
+                  type: file.type,
+                  data: result
+              }]);
+          };
+          reader.readAsDataURL(file);
+      });
+      e.target.value = '';
+  };
+
+  const removeFile = (index: number) => {
+      setSmartFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const processSmartImport = async () => {
+    if (!smartInput.trim() && smartFiles.length === 0) return;
+
+    setIsProcessingSmart(true);
+    try {
+        // Fix: Map state objects to the expected interface for the service
+        const mappedFiles = smartFiles.map(f => ({
+            data: f.data,
+            mimeType: f.type
+        }));
+
+        const aiSales = await parseSmartImport({
+            text: smartInput,
+            files: mappedFiles,
+            type: 'sales'
+        });
+        
+        if (aiSales && aiSales.length > 0) {
+             const newSales: Sale[] = aiSales.map((s: any) => ({
+                id: crypto.randomUUID(),
+                itemId: 'smart-import',
+                itemName: s.itemName || "Unknown Item",
+                customerName: s.customerName || "Unknown Buyer",
+                quantity: s.quantity || 1,
+                unitPrice: s.totalAmount / (s.quantity || 1),
+                costPrice: 0, 
+                totalAmount: s.totalAmount || 0,
+                status: (s.status as SaleStatus) || SaleStatus.TO_SHIP,
+                paymentStatus: PaymentStatus.PAID, 
+                saleType: 'Sale',
+                date: s.date || new Date().toISOString()
+             }));
+
+             setSales([...newSales, ...sales]);
+             alert(`✨ Processed ${newSales.length} sales!`);
+             setIsSmartSourceOpen(false);
+             setSmartInput('');
+             setSmartFiles([]);
+        } else {
+            alert("No items detected. Please check your text or file.");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Processing failed. Please check your API Key and try again.");
+    } finally {
+        setIsProcessingSmart(false);
+    }
+  };
+
   // --- UPDATERS ---
 
   const togglePayment = (id: string, current: PaymentStatus) => {
@@ -239,19 +320,26 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
         
         <div className="flex gap-2">
              <button 
+                onClick={() => setIsSmartSourceOpen(true)}
+                className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-blue-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors shadow-sm"
+            >
+                <Sparkles className="w-4 h-4 text-blue-500" /> 
+                <span className="hidden sm:inline">Smart Source</span>
+            </button>
+             <button 
                 onClick={handleEbayClick}
                 disabled={isFetchingEbay}
                 className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-blue-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
             >
                 <Globe className={`w-4 h-4 ${isFetchingEbay ? 'animate-spin' : ''}`} /> 
-                <span className="hidden sm:inline">{isFetchingEbay ? 'Fetching...' : 'Import from eBay'}</span>
+                <span className="hidden sm:inline">{isFetchingEbay ? 'Fetching...' : 'eBay API'}</span>
             </button>
             <button 
                 onClick={() => setIsImportModalOpen(true)}
                 className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors"
             >
                 <FileSpreadsheet className="w-4 h-4" /> 
-                <span className="hidden sm:inline">Excel Import</span>
+                <span className="hidden sm:inline">Excel</span>
             </button>
             <button 
                 onClick={() => setIsModalOpen(true)}
@@ -261,6 +349,88 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
             </button>
         </div>
       </div>
+
+       {/* Smart Source Modal (Robust: Paste + Upload) */}
+       {isSmartSourceOpen && (
+           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+               <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 border border-slate-200">
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-blue-500" />
+                            <h3 className="text-xl font-bold text-slate-900">Smart Source Sales</h3>
+                        </div>
+                        <button onClick={() => setIsSmartSourceOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+                    </div>
+
+                    <div className="space-y-4 mb-6">
+                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
+                             <p className="font-bold">Two ways to import:</p>
+                             <ul className="list-disc list-inside mt-1 space-y-1">
+                                 <li><strong>Paste Text:</strong> Copy (Ctrl+A) your eBay "Sold" page and paste below.</li>
+                                 <li><strong>Upload PDF/Image:</strong> Screenshot your sales or upload invoices.</li>
+                             </ul>
+                        </div>
+                        
+                        {/* 1. File Upload Area */}
+                        <div 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:bg-slate-50 hover:border-blue-400 transition-colors cursor-pointer"
+                        >
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    className="hidden" 
+                                    accept="image/*,application/pdf"
+                                    multiple
+                                    onChange={handleFileUpload}
+                                />
+                                <UploadCloud className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                                <p className="text-sm font-bold text-slate-600">Click to upload PDFs or Images</p>
+                                <p className="text-xs text-slate-400 mt-1">Supports multiple files</p>
+                        </div>
+                        
+                        {/* File List */}
+                        {smartFiles.length > 0 && (
+                            <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
+                                {smartFiles.map((file, idx) => (
+                                    <div key={idx} className="bg-slate-100 rounded-xl p-3 flex justify-between items-center border border-slate-200">
+                                        <div className="flex items-center gap-3">
+                                            {file.type.includes('image') ? <ImageIcon className="w-5 h-5 text-purple-500"/> : <FileText className="w-5 h-5 text-red-500"/>}
+                                            <div className="text-xs">
+                                                <p className="font-bold text-slate-700 truncate max-w-[200px]">{file.name}</p>
+                                            </div>
+                                        </div>
+                                        <button onClick={() => removeFile(idx)} className="text-slate-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="text-center text-xs text-slate-400 font-bold uppercase tracking-wider">- OR -</div>
+
+                        {/* 2. Text Area */}
+                        <textarea 
+                            value={smartInput}
+                            onChange={(e) => setSmartInput(e.target.value)}
+                            placeholder="Paste your copied text here..."
+                            className="w-full h-24 bg-slate-50 border border-slate-300 rounded-xl p-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none"
+                        />
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                         <button onClick={() => setIsSmartSourceOpen(false)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-xl font-bold transition-colors">Cancel</button>
+                         <button 
+                            onClick={processSmartImport}
+                            disabled={isProcessingSmart || (!smartInput.trim() && smartFiles.length === 0)}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-xl font-bold transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
+                        >
+                            <Sparkles className={`w-4 h-4 ${isProcessingSmart ? 'animate-spin' : ''}`} />
+                            {isProcessingSmart ? 'Analyzing...' : 'Process'}
+                        </button>
+                    </div>
+               </div>
+           </div>
+       )}
 
       {/* Filters */}
       <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
@@ -487,7 +657,7 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
                                 onChange={e => setEbayToken(e.target.value)}
                                 placeholder="Paste your OAuth Token here (starts with v^1.1...)"
                                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
-                             />
+                            />
                              <p className="text-[10px] text-slate-400 mt-2">
                                  Get a token from the <a href="https://developer.ebay.com/my/auth?env=production&index=0" target="_blank" className="text-blue-500 underline hover:text-blue-600">eBay Developer Portal</a> (User Access Token).
                              </p>
