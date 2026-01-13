@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { AppState, PaymentStatus } from "../types.ts";
 
 const SYSTEM_INSTRUCTION = `
@@ -16,7 +16,7 @@ export const analyzeBusinessData = async (data: AppState): Promise<string> => {
   try {
     const apiKey = process.env.API_KEY;
     if (!apiKey || apiKey === 'PASTE_YOUR_GEMINI_API_KEY_HERE') {
-      throw new Error("API Key not configured in index.html");
+      throw new Error("API Key not configured");
     }
 
     const ai = new GoogleGenAI({ apiKey });
@@ -52,6 +52,83 @@ export const analyzeBusinessData = async (data: AppState): Promise<string> => {
     return response.text || "No insights could be generated at this time.";
   } catch (error) {
     console.error("Error analyzing data with Gemini:", error);
-    return "Unable to generate insights. Please check your API key in index.html.";
+    return "Unable to generate insights. Please check your API key.";
+  }
+};
+
+export const parseSmartImport = async (text: string, type: 'inventory' | 'sales'): Promise<any[]> => {
+  try {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) throw new Error("API Key not found");
+    const ai = new GoogleGenAI({ apiKey });
+
+    const model = 'gemini-3-flash-preview'; 
+    let systemInstruction = "";
+    let responseSchema = undefined;
+
+    if (type === 'inventory') {
+        systemInstruction = `
+            You are a data extraction assistant specialized in parsing "Purchase History" or "Order Details" pages from eBay, Amazon, or suppliers.
+            
+            RULES:
+            1. Extract the Item Name.
+            2. Extract the Price paid. Map this to 'costPrice'.
+            3. Automatically calculate a 'price' (Selling Price) that is 30% higher than the 'costPrice'.
+            4. If a SKU is missing, generate a short logical one based on the name.
+            5. Default Quantity = 1 if not specified.
+            6. Map the category to a general guess based on the item name.
+            
+            Return a JSON array of InventoryItems.
+        `;
+        responseSchema = {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    name: { type: Type.STRING },
+                    sku: { type: Type.STRING },
+                    quantity: { type: Type.NUMBER },
+                    price: { type: Type.NUMBER, description: "Selling Price (Cost + 30%)" },
+                    costPrice: { type: Type.NUMBER, description: "The actual price paid for the item" },
+                    category: { type: Type.STRING }
+                },
+                required: ["name", "price", "costPrice", "quantity"]
+            }
+        };
+    } else {
+        systemInstruction = "You are a data extraction assistant. Extract sales records from unstructured text (like a copied order list). Map 'Item' to itemName, 'Buyer' to customerName. If date is missing, use today's date (YYYY-MM-DD). Return a JSON array.";
+        responseSchema = {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    date: { type: Type.STRING, description: "ISO Date string YYYY-MM-DD" },
+                    itemName: { type: Type.STRING },
+                    customerName: { type: Type.STRING },
+                    quantity: { type: Type.NUMBER },
+                    unitPrice: { type: Type.NUMBER },
+                    totalAmount: { type: Type.NUMBER }
+                },
+                required: ["itemName", "totalAmount"]
+            }
+        };
+    }
+
+    const response = await ai.models.generateContent({
+        model,
+        contents: text,
+        config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: responseSchema
+        }
+    });
+
+    const jsonText = response.text || "[]";
+    return JSON.parse(jsonText);
+
+  } catch (error) {
+    console.error("Smart Import Error", error);
+    return [];
   }
 };

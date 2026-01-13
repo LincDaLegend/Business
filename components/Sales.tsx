@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Sale, InventoryItem, SaleStatus, PaymentStatus, SaleType, ShippingBatch } from '../types.ts';
+import { Sale, InventoryItem, SaleStatus, PaymentStatus, SaleType, ShippingBatch, AppState } from '../types.ts';
 import { 
   ShoppingCart, Plus, Search, 
   Filter, CheckCircle2, XCircle, ChevronDown,
-  ArrowRightLeft, Box, DollarSign, Calendar, Trash2
+  ArrowRightLeft, Box, DollarSign, Calendar, Trash2, FileSpreadsheet, Clipboard, RefreshCw, X, Globe, Lock, AlertCircle
 } from 'lucide-react';
+import { parseSalesImport } from '../services/importService.ts';
+import { loadState } from '../services/storageService.ts';
 
 interface SalesProps {
   sales: Sale[];
@@ -19,6 +21,16 @@ interface SalesProps {
 
 const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInventoryStock, deleteSale }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isEbayModalOpen, setIsEbayModalOpen] = useState(false);
+  
+  // eBay State
+  const [ebayToken, setEbayToken] = useState('');
+  const [isFetchingEbay, setIsFetchingEbay] = useState(false);
+
+  // Import State
+  const [importText, setImportText] = useState('');
+  const [importError, setImportError] = useState('');
   
   // Filters
   const [filterQuery, setFilterQuery] = useState('');
@@ -89,6 +101,110 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
     setInitialStatus(SaleStatus.ON_HOLD);
   };
 
+  const handleImport = () => {
+      if (!importText.trim()) return;
+      setImportError('');
+      try {
+          const newSales = parseSalesImport(importText);
+          if (newSales.length === 0) {
+              setImportError("No sales found. Please check your data format and ensure headers exist.");
+              return;
+          }
+          setSales([...newSales, ...sales]);
+          setIsImportModalOpen(false);
+          setImportText('');
+          alert(`Successfully imported ${newSales.length} sales!`);
+      } catch (e: any) {
+          setImportError(e.message || "Failed to parse data.");
+      }
+  };
+
+  const performEbayFetch = async (tokenToUse: string) => {
+    // Simple validation for token type
+    if (!tokenToUse.startsWith('v^1.1')) {
+        if (!confirm("This token doesn't look like a standard OAuth 2.0 token (usually starts with 'v^1.1'). Legacy AuthnAuth tokens are NOT supported. Do you want to try anyway?")) {
+            return;
+        }
+    }
+    
+    // Load state directly to get the latest URL
+    const state = loadState();
+    if (!state.googleSheetsUrl) {
+        alert("Please configure your Google Apps Script URL in Settings first.");
+        return;
+    }
+
+    setIsFetchingEbay(true);
+    try {
+        const response = await fetch(state.googleSheetsUrl, {
+            method: 'POST',
+            body: JSON.stringify({
+                proxyUrl: 'https://api.ebay.com/sell/fulfillment/v1/order?limit=20',
+                method: 'get',
+                headers: {
+                    'Authorization': `Bearer ${tokenToUse}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+        });
+
+        const json = await response.json();
+        
+        if (json.orders) {
+            const newSales: Sale[] = json.orders.map((order: any) => {
+                const item = order.lineItems[0]; // Simplification: take first item
+                return {
+                    id: crypto.randomUUID(),
+                    itemId: 'ebay-import',
+                    itemName: item.title,
+                    customerName: order.buyer.username,
+                    quantity: parseInt(item.quantity) || 1,
+                    unitPrice: parseFloat(item.lineItemCost.value),
+                    costPrice: 0,
+                    totalAmount: parseFloat(order.totalFeeBasisAmount.value),
+                    status: SaleStatus.TO_SHIP,
+                    paymentStatus: PaymentStatus.PAID,
+                    saleType: 'Sale',
+                    date: new Date(order.creationDate).toISOString(),
+                    shippingDetails: `${order.buyer.username}, ${order.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo?.contactAddress?.addressLine1 || ''}`
+                };
+            });
+            
+            setSales([...newSales, ...sales]);
+            setIsEbayModalOpen(false);
+            alert(`Successfully imported ${newSales.length} orders from eBay!`);
+        } else {
+             console.error("eBay Response:", json);
+             if (json.errors) {
+                 alert(`eBay Error: ${json.errors[0].message}`);
+             } else {
+                 alert("No orders returned or token invalid.");
+             }
+        }
+
+    } catch (e) {
+        console.error(e);
+        alert("Failed to fetch from eBay proxy.");
+    } finally {
+        setIsFetchingEbay(false);
+    }
+  };
+
+  const handleEbayClick = () => {
+      const state = loadState();
+      // If global token exists, use it immediately
+      if (state.ebayUserToken) {
+          if (confirm("Use saved eBay Token to fetch recent orders?")) {
+            performEbayFetch(state.ebayUserToken);
+          } else {
+            setIsEbayModalOpen(true);
+          }
+      } else {
+          // Otherwise open modal to ask for token
+          setIsEbayModalOpen(true);
+      }
+  };
+
   // --- UPDATERS ---
 
   const togglePayment = (id: string, current: PaymentStatus) => {
@@ -121,12 +237,29 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
            <p className="text-slate-500 text-sm">Record new sales and manage transaction details.</p>
         </div>
         
-        <button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-200 transition-all"
-        >
-            <Plus className="w-5 h-5" /> New Sale
-        </button>
+        <div className="flex gap-2">
+             <button 
+                onClick={handleEbayClick}
+                disabled={isFetchingEbay}
+                className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-blue-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
+            >
+                <Globe className={`w-4 h-4 ${isFetchingEbay ? 'animate-spin' : ''}`} /> 
+                <span className="hidden sm:inline">{isFetchingEbay ? 'Fetching...' : 'Import from eBay'}</span>
+            </button>
+            <button 
+                onClick={() => setIsImportModalOpen(true)}
+                className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors"
+            >
+                <FileSpreadsheet className="w-4 h-4" /> 
+                <span className="hidden sm:inline">Excel Import</span>
+            </button>
+            <button 
+                onClick={() => setIsModalOpen(true)}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-200 transition-all"
+            >
+                <Plus className="w-5 h-5" /> New Sale
+            </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -266,6 +399,115 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
             </table>
         </div>
       </div>
+
+       {/* Import Modal */}
+       {isImportModalOpen && (
+           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+               <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 border border-slate-200">
+                    <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center gap-2">
+                            <FileSpreadsheet className="w-5 h-5 text-emerald-500" />
+                            <h3 className="text-xl font-bold text-slate-900">Import Sales from Excel/CSV</h3>
+                        </div>
+                        <button onClick={() => setIsImportModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+                    </div>
+                    
+                    <div className="mb-4 bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex gap-3">
+                        <div className="bg-white p-2 rounded-lg border border-emerald-100 h-fit text-emerald-500">
+                            <Clipboard className="w-5 h-5" />
+                        </div>
+                        <div className="text-sm text-emerald-800">
+                            <p className="font-bold mb-1">Instructions:</p>
+                            <p className="mb-2">1. Open your sales spreadsheet (e.g. eBay Sold Listings).</p>
+                            <p className="mb-2">2. Ensure you have headers like <strong>"Item Title", "Buyer Name", "Price", "Date"</strong>.</p>
+                            <p>3. Select the rows (including headers), Copy, and Paste below.</p>
+                        </div>
+                    </div>
+
+                    <textarea 
+                        value={importText} 
+                        onChange={e => setImportText(e.target.value)} 
+                        placeholder="Paste your copied order table here..."
+                        className="w-full h-48 bg-slate-50 border border-slate-300 rounded-xl p-4 text-xs font-mono outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 mb-2 resize-none whitespace-pre"
+                    />
+
+                    {importError && (
+                        <div className="text-red-500 text-sm font-bold mb-4">{importError}</div>
+                    )}
+
+                    <div className="flex justify-end gap-3">
+                        <button onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-xl font-bold transition-colors">Cancel</button>
+                        <button 
+                            onClick={handleImport}
+                            disabled={!importText.trim()}
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-xl font-bold transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
+                        >
+                            <FileSpreadsheet className="w-4 h-4" />
+                            Import Sales
+                        </button>
+                    </div>
+               </div>
+           </div>
+       )}
+       
+       {/* eBay API Modal */}
+       {isEbayModalOpen && (
+           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+               <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 border border-slate-200">
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-2">
+                            <Globe className="w-5 h-5 text-blue-500" />
+                            <h3 className="text-xl font-bold text-slate-900">Import from eBay API</h3>
+                        </div>
+                        <button onClick={() => setIsEbayModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+                    </div>
+                    
+                    <div className="space-y-4 mb-6">
+                         <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-sm text-blue-800">
+                             <p className="font-bold mb-2">How this works (Proxy):</p>
+                             <p className="mb-2">Your browser cannot call eBay directly. We use your Google Script as a proxy to fetch orders safely.</p>
+                             <p><strong>Required:</strong> You must update your Google Apps Script in Settings first.</p>
+                         </div>
+                         
+                         <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl text-sm text-amber-800 flex gap-3">
+                            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                            <div>
+                                <p className="font-bold mb-1">OAuth 2.0 Only</p>
+                                <p>Legacy "Auth'n'Auth" tokens are not supported. Please use a modern <strong>User Access Token</strong>.</p>
+                            </div>
+                         </div>
+
+                         <div>
+                             <label className="text-xs font-bold text-slate-500 uppercase mb-1.5 block tracking-wider flex items-center gap-1">
+                                <Lock className="w-3 h-3" /> eBay OAuth 2.0 User Token
+                             </label>
+                             <input 
+                                type="password" 
+                                value={ebayToken}
+                                onChange={e => setEbayToken(e.target.value)}
+                                placeholder="Paste your OAuth Token here (starts with v^1.1...)"
+                                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                             />
+                             <p className="text-[10px] text-slate-400 mt-2">
+                                 Get a token from the <a href="https://developer.ebay.com/my/auth?env=production&index=0" target="_blank" className="text-blue-500 underline hover:text-blue-600">eBay Developer Portal</a> (User Access Token).
+                             </p>
+                         </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                        <button onClick={() => setIsEbayModalOpen(false)} className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-xl font-bold transition-colors">Cancel</button>
+                        <button 
+                            onClick={() => performEbayFetch(ebayToken)}
+                            disabled={isFetchingEbay || !ebayToken}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-xl font-bold transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${isFetchingEbay ? 'animate-spin' : ''}`} />
+                            {isFetchingEbay ? 'Fetching Orders...' : 'Fetch Orders'}
+                        </button>
+                    </div>
+               </div>
+           </div>
+       )}
 
       {/* Record Sale Modal */}
       {isModalOpen && (

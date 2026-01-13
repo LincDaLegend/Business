@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { AppState, SaleStatus } from '../types.ts';
-import { Download, Upload, FileSpreadsheet, Database, AlertTriangle, Save, Copy, Check, Cloud, ChevronDown, ChevronUp, Link as LinkIcon, RefreshCw } from 'lucide-react';
+import { Download, Upload, FileSpreadsheet, Database, AlertTriangle, Save, Copy, Check, Cloud, ChevronDown, ChevronUp, Link as LinkIcon, RefreshCw, ToggleLeft, ToggleRight, Lock, Globe } from 'lucide-react';
 
 interface SettingsProps {
   data: AppState;
@@ -11,6 +11,7 @@ const Settings: React.FC<SettingsProps> = ({ data, onImport }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [scriptUrl, setScriptUrl] = useState(data.googleSheetsUrl || '');
+  const [ebayToken, setEbayToken] = useState(data.ebayUserToken || '');
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -127,7 +128,16 @@ const Settings: React.FC<SettingsProps> = ({ data, onImport }) => {
 
   const handleSaveUrl = () => {
       onImport({ ...data, googleSheetsUrl: scriptUrl });
-      alert("Configuration saved!");
+      alert("Proxy URL saved!");
+  };
+  
+  const handleSaveToken = () => {
+      onImport({ ...data, ebayUserToken: ebayToken });
+      alert("eBay Token saved securely.");
+  };
+  
+  const toggleAutoSync = () => {
+      onImport({ ...data, autoSyncEnabled: !data.autoSyncEnabled });
   };
 
   const handleSync = async () => {
@@ -193,8 +203,25 @@ const Settings: React.FC<SettingsProps> = ({ data, onImport }) => {
       }
   };
 
+  // Updated Script Code with Proxy Capability
   const scriptCode = `function doPost(e) {
   var data = JSON.parse(e.postData.contents);
+  
+  // --- API PROXY FEATURE (For eBay/External APIs) ---
+  if (data.proxyUrl) {
+    var options = {
+      method: data.method || 'get',
+      headers: data.headers || {},
+      muteHttpExceptions: true
+    };
+    if (data.payload) {
+       options.payload = data.payload;
+    }
+    var response = UrlFetchApp.fetch(data.proxyUrl, options);
+    return ContentService.createTextOutput(response.getContentText()).setMimeType(ContentService.MimeType.JSON);
+  }
+  // --------------------------------------------------
+
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   
   if (data.sales) updateSheet(ss, 'Sales', ['Date', 'Item', 'Customer', 'Type', 'Status', 'Payment', 'Qty', 'Unit Price', 'Total'], data.sales.map(s => [s.date, s.itemName, s.customerName, s.saleType, s.status, s.paymentStatus, s.quantity, s.unitPrice, s.totalAmount]));
@@ -221,31 +248,70 @@ function updateSheet(ss, sheetName, headers, rows) {
            <p className="text-slate-500 text-sm">Backup, sync, and export your business data.</p>
         </div>
 
-        {/* Cloud Sync Section */}
+        {/* API Configurations */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-             <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+             <div className="p-6 border-b border-slate-100 bg-slate-50">
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                    <Cloud className="w-5 h-5 text-blue-500" /> Cloud Sync (Google Sheets)
+                    <Cloud className="w-5 h-5 text-blue-500" /> API Configuration
                 </h3>
-                <p className="text-sm text-slate-500 mt-1">Automatically push your Sales, Inventory, and Expenses to a Google Sheet.</p>
+                <p className="text-sm text-slate-500 mt-1">Configure external services for syncing and sourcing.</p>
              </div>
              
-             <div className="p-6 space-y-4">
-                 <div className="flex gap-2">
-                     <div className="flex-1 relative">
-                        <LinkIcon className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                        <input 
-                            type="text" 
-                            placeholder="Paste Web App URL here..." 
-                            value={scriptUrl}
-                            onChange={(e) => setScriptUrl(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2.5 bg-white text-slate-900 border border-slate-300 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                        />
+             <div className="p-6 space-y-6">
+                 {/* Google Sheet URL */}
+                 <div>
+                     <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Google Apps Script URL (Proxy)</label>
+                     <div className="flex gap-2">
+                        <div className="flex-1 relative">
+                            <LinkIcon className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                            <input 
+                                type="text" 
+                                placeholder="https://script.google.com/..." 
+                                value={scriptUrl}
+                                onChange={(e) => setScriptUrl(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2.5 bg-white text-slate-900 border border-slate-300 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            />
+                        </div>
+                        <button onClick={handleSaveUrl} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-colors">
+                            Save URL
+                        </button>
                      </div>
-                     <button onClick={handleSaveUrl} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-colors">
-                         Save URL
-                     </button>
+                 </div>
+
+                 {/* eBay Token */}
+                 <div>
+                     <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
+                        <Globe className="w-3 h-3 text-blue-500" /> eBay User Access Token
+                     </label>
+                     <div className="flex gap-2">
+                        <div className="flex-1 relative">
+                            <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                            <input 
+                                type="password" 
+                                placeholder="Paste OAuth Token here (v^1.1...)" 
+                                value={ebayToken}
+                                onChange={(e) => setEbayToken(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2.5 bg-white text-slate-900 border border-slate-300 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            />
+                        </div>
+                        <button onClick={handleSaveToken} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-colors">
+                            Save Token
+                        </button>
+                     </div>
+                     <p className="text-[10px] text-slate-400 mt-1">Token is saved locally for convenience. Use a User Access Token from the eBay Developer Portal.</p>
+                 </div>
+
+                 {/* Actions */}
+                 <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                      <button 
+                        onClick={toggleAutoSync}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${data.autoSyncEnabled ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
+                    >
+                        <span className="text-sm font-bold">{data.autoSyncEnabled ? 'Auto-Sync ON' : 'Auto-Sync OFF'}</span>
+                        {data.autoSyncEnabled ? <ToggleRight className="w-6 h-6 text-emerald-500" /> : <ToggleLeft className="w-6 h-6 text-slate-400" />}
+                    </button>
+
+                    <button 
                         onClick={handleSync} 
                         disabled={isSyncing}
                         className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl text-sm transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
@@ -260,26 +326,12 @@ function updateSheet(ss, sheetName, headers, rows) {
                         onClick={() => setIsInstructionsOpen(!isInstructionsOpen)}
                         className="w-full flex justify-between items-center p-4 text-left font-bold text-blue-800 text-sm hover:bg-blue-100 transition-colors"
                      >
-                        <span>How to set this up? (Update Required!)</span>
+                        <span>View Google Apps Script Code</span>
                         {isInstructionsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                      </button>
                      
                      {isInstructionsOpen && (
                          <div className="p-4 bg-white border-t border-blue-100 text-sm text-slate-600 space-y-4">
-                             <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs font-bold mb-2">
-                                 Note: The script has been updated to include 'Shipped Items'. Please update your Google Apps Script.
-                             </div>
-                             <ol className="list-decimal pl-5 space-y-2">
-                                 <li>Open your existing <strong>Google Sheet</strong>.</li>
-                                 <li>Go to <strong>Extensions</strong> &gt; <strong>Apps Script</strong>.</li>
-                                 <li><strong>Delete all existing code</strong> and paste the new script below.</li>
-                                 <li>Click <strong>Deploy</strong> &gt; <strong>New deployment</strong> (Important: Create a NEW deployment, don't just save).</li>
-                                 <li>Select type: <strong>Web app</strong>.</li>
-                                 <li>Set <strong>Who has access</strong> to: <strong>Anyone</strong>.</li>
-                                 <li>Click <strong>Deploy</strong> and copy the <strong>NEW Web App URL</strong>.</li>
-                                 <li>Paste the new URL above and click Save.</li>
-                             </ol>
-                             
                              <div className="relative group">
                                  <pre className="bg-slate-900 text-slate-300 p-4 rounded-lg overflow-x-auto text-xs font-mono">{scriptCode}</pre>
                                  <button 
@@ -298,8 +350,8 @@ function updateSheet(ss, sheetName, headers, rows) {
              </div>
         </div>
 
+        {/* Manual Export/Backup Sections (Unchanged) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Backup & Restore */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
                     <Save className="w-5 h-5 text-emerald-500" /> Backup & Restore
@@ -327,78 +379,27 @@ function updateSheet(ss, sheetName, headers, rows) {
                             <Upload className="w-5 h-5" /> Restore from Backup
                         </button>
                     </div>
-                    <p className="text-xs text-center text-slate-400">
-                        Use the .json file generated from the "Download Full Backup" button to restore your data.
-                    </p>
                 </div>
             </div>
 
-            {/* Export Sheets */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
                     <FileSpreadsheet className="w-5 h-5 text-emerald-500" /> Manual Export
                 </h3>
                 <div className="space-y-3">
                     <div className="flex gap-2">
-                        <button 
-                            onClick={() => downloadCSV('sales')}
-                            className="flex-1 py-3 px-3 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-600 border border-slate-200 hover:border-emerald-200 rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-sm"
-                        >
-                            <Download className="w-4 h-4 opacity-50" /> Sales CSV
-                        </button>
-                        <button 
-                            onClick={() => copyToClipboard('sales')}
-                            className="flex-1 py-3 px-3 bg-emerald-500 hover:bg-emerald-600 text-white border border-emerald-600 rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-sm shadow-sm"
-                        >
-                            {copyStatus === 'sales' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />} 
-                            {copyStatus === 'sales' ? 'Copied!' : 'Copy for Sheets'}
-                        </button>
+                        <button onClick={() => downloadCSV('sales')} className="flex-1 py-3 px-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm">Sales CSV</button>
+                        <button onClick={() => copyToClipboard('sales')} className="flex-1 py-3 px-3 bg-emerald-500 text-white rounded-xl font-bold text-sm">Copy Sales</button>
                     </div>
-
                     <div className="flex gap-2">
-                        <button 
-                            onClick={() => downloadCSV('inventory')}
-                            className="flex-1 py-3 px-3 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-600 border border-slate-200 hover:border-emerald-200 rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-sm"
-                        >
-                            <Download className="w-4 h-4 opacity-50" /> Stock CSV
-                        </button>
-                         <button 
-                            onClick={() => copyToClipboard('inventory')}
-                            className="flex-1 py-3 px-3 bg-emerald-500 hover:bg-emerald-600 text-white border border-emerald-600 rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-sm shadow-sm"
-                        >
-                            {copyStatus === 'inventory' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />} 
-                            {copyStatus === 'inventory' ? 'Copied!' : 'Copy for Sheets'}
-                        </button>
+                        <button onClick={() => downloadCSV('inventory')} className="flex-1 py-3 px-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm">Stock CSV</button>
+                        <button onClick={() => copyToClipboard('inventory')} className="flex-1 py-3 px-3 bg-emerald-500 text-white rounded-xl font-bold text-sm">Copy Stock</button>
                     </div>
-
                     <div className="flex gap-2">
-                        <button 
-                            onClick={() => downloadCSV('expenses')}
-                            className="flex-1 py-3 px-3 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-600 border border-slate-200 hover:border-emerald-200 rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-sm"
-                        >
-                            <Download className="w-4 h-4 opacity-50" /> Cost CSV
-                        </button>
-                         <button 
-                            onClick={() => copyToClipboard('expenses')}
-                            className="flex-1 py-3 px-3 bg-emerald-500 hover:bg-emerald-600 text-white border border-emerald-600 rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-sm shadow-sm"
-                        >
-                            {copyStatus === 'expenses' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />} 
-                            {copyStatus === 'expenses' ? 'Copied!' : 'Copy for Sheets'}
-                        </button>
+                        <button onClick={() => downloadCSV('expenses')} className="flex-1 py-3 px-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm">Cost CSV</button>
+                        <button onClick={() => copyToClipboard('expenses')} className="flex-1 py-3 px-3 bg-emerald-500 text-white rounded-xl font-bold text-sm">Copy Cost</button>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-4 items-start">
-            <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
-                <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-                <h4 className="font-bold text-amber-800 text-sm">Data Storage Notice</h4>
-                <p className="text-sm text-amber-700 mt-1">
-                    Your data is stored locally in this browser. To prevent data loss, use the <strong>Backup</strong> or <strong>Cloud Sync</strong> features regularly.
-                </p>
             </div>
         </div>
     </div>

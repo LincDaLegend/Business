@@ -69,4 +69,6 @@ export interface AppState {
     unitsPerItem: number; 
   };
   googleSheetsUrl?: string;
+  ebayUserToken?: string;
+  autoSyncEnabled: boolean;
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Package, ShoppingCart, Menu, X, Box, Receipt, PackageOpen, Truck, Settings, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Menu, X, Box, Receipt, PackageOpen, Truck, Settings, RefreshCw, CloudCheck, Cloud } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -7,9 +7,10 @@ interface LayoutProps {
   setActiveTab: (tab: string) => void;
   onSync: () => void;
   isSyncing: boolean;
+  autoSyncEnabled: boolean;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onSync, isSyncing }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onSync, isSyncing, autoSyncEnabled }) => {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
 
   const navItems = [
@@ -84,14 +85,14 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onSy
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
-        {/* Header - Now visible on Desktop too to house the Sync button */}
+        {/* Header */}
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 shadow-sm">
           <div className="flex items-center gap-4">
              <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-500 hover:text-slate-700">
                 <Menu className="w-6 h-6" />
              </button>
              
-             {/* Mobile Logo (Visible only on mobile) */}
+             {/* Mobile Logo */}
              <div className="lg:hidden flex items-center gap-2">
                   <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white shadow-sm">
                       <Box className="w-4 h-4" />
@@ -103,15 +104,31 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onSy
              </div>
           </div>
           
-          {/* Sync Button (Upper right portion) */}
-          <button 
-            onClick={onSync}
-            disabled={isSyncing}
-            className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg font-bold text-sm transition-colors disabled:opacity-50 border border-blue-100"
-          >
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">{isSyncing ? 'Syncing...' : 'Sync Data'}</span>
-          </button>
+          {/* Sync Status / Button */}
+          {autoSyncEnabled ? (
+             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-100">
+                 {isSyncing ? (
+                     <>
+                        <RefreshCw className="w-4 h-4 text-emerald-500 animate-spin" />
+                        <span className="text-xs font-bold text-emerald-600">Auto-Syncing...</span>
+                     </>
+                 ) : (
+                     <>
+                        <CloudCheck className="w-4 h-4 text-slate-400" />
+                        <span className="text-xs font-bold text-slate-400">Cloud Active</span>
+                     </>
+                 )}
+             </div>
+          ) : (
+             <button 
+                onClick={onSync}
+                disabled={isSyncing}
+                className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg font-bold text-sm transition-colors disabled:opacity-50 border border-blue-100"
+              >
+                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">{isSyncing ? 'Syncing...' : 'Sync Data'}</span>
+              </button>
+          )}
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar">

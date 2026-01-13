@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Layout from './components/Layout.tsx';
 import Dashboard from './components/Dashboard.tsx';
 import Inventory from './components/Inventory.tsx';
@@ -14,6 +14,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [data, setData] = useState<AppState>(loadState());
   const [isSyncing, setIsSyncing] = useState(false);
+  const isFirstRender = useRef(true);
   
   // State to handle deep-linking to LBC Booking for a specific customer
   const [lbcPreselectedCustomer, setLbcPreselectedCustomer] = useState<string | null>(null);
@@ -63,7 +64,7 @@ const App: React.FC = () => {
     setData(prev => ({ ...prev, categories: newCategories }));
   };
 
-  // Full state restore
+  // Full state restore/update from Settings
   const handleImport = (importedData: AppState) => {
       setData(importedData);
       saveState(importedData); // Force immediate save
@@ -112,10 +113,13 @@ const App: React.FC = () => {
   const handleSync = async () => {
     const scriptUrl = data.googleSheetsUrl;
     if (!scriptUrl) {
-        alert("Please configure the Google Apps Script URL in Settings first.");
-        setActiveTab('settings');
+        if (!data.autoSyncEnabled) {
+             alert("Please configure the Google Apps Script URL in Settings first.");
+             setActiveTab('settings');
+        }
         return;
     }
+    
     setIsSyncing(true);
     try {
         const payload = {
@@ -161,14 +165,39 @@ const App: React.FC = () => {
             body: JSON.stringify(payload)
         });
 
-        alert("Sync sent! Please check your Google Sheet.");
+        if (!data.autoSyncEnabled) {
+            alert("Sync sent! Please check your Google Sheet.");
+        }
     } catch (error) {
         console.error(error);
-        alert("Sync failed. Check console for details.");
+        if (!data.autoSyncEnabled) {
+            alert("Sync failed. Check console for details.");
+        }
     } finally {
         setIsSyncing(false);
     }
   };
+
+  // --- Auto Sync Logic ---
+  useEffect(() => {
+    // Skip the first render to prevent syncing on initial load
+    if (isFirstRender.current) {
+        isFirstRender.current = false;
+        return;
+    }
+
+    if (data.autoSyncEnabled && data.googleSheetsUrl) {
+        // Debounce: Wait 4 seconds after last change before syncing
+        const timeoutId = setTimeout(() => {
+            console.log("Auto-syncing data...");
+            handleSync();
+        }, 4000);
+
+        return () => clearTimeout(timeoutId);
+    }
+  }, [data]); 
+  // Dependency on 'data' ensures this runs whenever inventory, sales, etc change.
+  // Note: 'handleSync' closes over the current 'data' scope, which is correct.
 
   // Handler to navigate to LBC booking with a customer selected
   const handleNavigateToLbc = (customerName: string) => {
@@ -233,7 +262,13 @@ const App: React.FC = () => {
   };
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab} onSync={handleSync} isSyncing={isSyncing}>
+    <Layout 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        onSync={handleSync} 
+        isSyncing={isSyncing} 
+        autoSyncEnabled={data.autoSyncEnabled}
+    >
       {renderContent()}
     </Layout>
   );

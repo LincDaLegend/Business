@@ -39,7 +39,9 @@ const defaultState: AppState = {
     costPerUnit: 0.50,
     unitsPerItem: 1
   },
-  googleSheetsUrl: DEFAULT_SHEETS_URL
+  googleSheetsUrl: DEFAULT_SHEETS_URL,
+  ebayUserToken: '',
+  autoSyncEnabled: false
 };
 
 export const loadState = (): AppState => {
@@ -81,6 +83,14 @@ export const loadState = (): AppState => {
     // Automatically set the URL if it's missing or empty
     if (!loadedState.googleSheetsUrl) {
       loadedState.googleSheetsUrl = DEFAULT_SHEETS_URL;
+    }
+    // Default autoSync to false if undefined
+    if (loadedState.autoSyncEnabled === undefined) {
+      loadedState.autoSyncEnabled = false;
+    }
+    // Default eBay Token
+    if (loadedState.ebayUserToken === undefined) {
+      loadedState.ebayUserToken = '';
     }
     
     return loadedState;
