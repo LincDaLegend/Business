@@ -361,9 +361,10 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
         } else {
             alert("Could not detect items. Ensure you copied your 'Purchase History' or uploaded a clear invoice/screenshot.");
         }
-    } catch (e) {
+    } catch (e: any) {
         console.error(e);
-        alert("Processing failed. Please check your API Key and try again.");
+        // Show the actual error message (e.g., API Key missing)
+        alert(`Processing failed: ${e.message || "Please check your API Key and try again."}`);
     } finally {
         setIsProcessingSmart(false);
     }

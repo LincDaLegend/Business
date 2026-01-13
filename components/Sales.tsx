@@ -278,9 +278,10 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
         } else {
             alert("No items detected. Please check your text or file.");
         }
-    } catch (e) {
+    } catch (e: any) {
         console.error(e);
-        alert("Processing failed. Please check your API Key and try again.");
+        // Show the actual error message (e.g., API Key missing)
+        alert(`Processing failed: ${e.message || "Please check your API Key and try again."}`);
     } finally {
         setIsProcessingSmart(false);
     }

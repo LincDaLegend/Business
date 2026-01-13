@@ -64,9 +64,11 @@ interface SmartImportOptions {
 }
 
 export const parseSmartImport = async ({ text, files, type, totalCost }: SmartImportOptions): Promise<any[]> => {
-  try {
+    // Check API Key explicitly before calling SDK
     const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API Key not found");
+    if (!apiKey) {
+        throw new Error("Gemini API Key is missing. Please check your deployment settings.");
+    }
     const ai = new GoogleGenAI({ apiKey });
 
     // Use Gemini 3 Flash for speed + visual capability
@@ -180,74 +182,66 @@ export const parseSmartImport = async ({ text, files, type, totalCost }: SmartIm
         });
     }
 
-    if (parts.length === 0) throw new Error("No input provided");
+    if (parts.length === 0) throw new Error("No input provided. Please upload a file or enter text.");
 
-    const response = await ai.models.generateContent({
-        model,
-        contents: { parts },
-        config: {
-            systemInstruction,
-            responseMimeType: "application/json",
-            responseSchema: responseSchema,
-            thinkingConfig: thinkingBudget > 0 ? { thinkingBudget } : undefined
-        }
-    });
-
-    const jsonText = response.text || "[]";
-    // Clean up potential markdown code blocks (e.g., ```json ... ```)
-    const cleanJson = jsonText.replace(/```json|```/g, '').trim();
-    const parsedItems = JSON.parse(cleanJson);
-
-    // --- POST-PROCESSING: WEIGHTED COST DISTRIBUTION ---
-    if (type === 'inventory' && Array.isArray(parsedItems)) {
-        // Calculate total estimated market value of the batch
-        // We use a small epsilon 0.01 to prevent division by zero if AI returns all 0s
-        const totalMarketValue = parsedItems.reduce((acc: number, i: any) => acc + (i.estimatedValue || 0), 0);
-        const hasValidValuation = totalMarketValue > 0;
-
-        return parsedItems.map(item => {
-            let calculatedCost = 0;
-            let calculatedPrice = 0;
-
-            // WEIGHTED LOGIC:
-            if (totalCost && totalCost > 0) {
-                if (hasValidValuation && (item.estimatedValue || 0) > 0) {
-                     // Weight = (Item Value / Total Batch Value)
-                     const weight = item.estimatedValue / totalMarketValue;
-                     calculatedCost = weight * totalCost;
-                } else {
-                     // Fallback: Even split if values missing or totalMarketValue is 0
-                     calculatedCost = totalCost / parsedItems.length;
-                }
+    try {
+        const response = await ai.models.generateContent({
+            model,
+            contents: { parts },
+            config: {
+                systemInstruction,
+                responseMimeType: "application/json",
+                responseSchema: responseSchema,
+                thinkingConfig: thinkingBudget > 0 ? { thinkingBudget } : undefined
             }
-            
-            // Set Selling Price
-            // If AI gave us a Market Value, we can use that as the base Price, otherwise Cost * 1.3
-            if (item.estimatedValue && item.estimatedValue > 0) {
-                // If we know the user's exchange rate, we should ideally convert this USD estimated value to PHP.
-                // However, `estimatedValue` from AI is just a number. 
-                // We'll trust the AI's number as the base "Price" if available, 
-                // but usually the AI returns USD while the app runs in PHP (mostly).
-                // For safety, we stick to margin-based pricing OR use the estimated value if it seems high enough to be PHP (unlikely with prompts asking for USD).
-                // Let's stick to a safe margin: Cost * 1.3, unless estimatedValue * exchange_rate is significantly higher. 
-                // Since we don't have rate here easily, we use simple margin.
-                calculatedPrice = calculatedCost > 0 ? calculatedCost * 1.3 : (item.estimatedValue * 58); // Rough fallback conversion
-            } else {
-                calculatedPrice = calculatedCost > 0 ? calculatedCost * 1.3 : 0;
-            }
-
-            return {
-                ...item,
-                costPrice: parseFloat(calculatedCost.toFixed(2)),
-                price: parseFloat(calculatedPrice.toFixed(2))
-            };
         });
+
+        const jsonText = response.text || "[]";
+        const cleanJson = jsonText.replace(/```json|```/g, '').trim();
+        const parsedItems = JSON.parse(cleanJson);
+
+        // --- POST-PROCESSING: WEIGHTED COST DISTRIBUTION ---
+        if (type === 'inventory' && Array.isArray(parsedItems)) {
+            // Calculate total estimated market value of the batch
+            const totalMarketValue = parsedItems.reduce((acc: number, i: any) => acc + (i.estimatedValue || 0), 0);
+            const hasValidValuation = totalMarketValue > 0;
+
+            return parsedItems.map(item => {
+                let calculatedCost = 0;
+                let calculatedPrice = 0;
+
+                // WEIGHTED LOGIC:
+                if (totalCost && totalCost > 0) {
+                    if (hasValidValuation && (item.estimatedValue || 0) > 0) {
+                         // Weight = (Item Value / Total Batch Value)
+                         const weight = item.estimatedValue / totalMarketValue;
+                         calculatedCost = weight * totalCost;
+                    } else {
+                         // Fallback: Even split if values missing or totalMarketValue is 0
+                         calculatedCost = totalCost / parsedItems.length;
+                    }
+                }
+                
+                // Set Selling Price
+                if (item.estimatedValue && item.estimatedValue > 0) {
+                    calculatedPrice = calculatedCost > 0 ? calculatedCost * 1.3 : (item.estimatedValue * 58); // Rough fallback conversion
+                } else {
+                    calculatedPrice = calculatedCost > 0 ? calculatedCost * 1.3 : 0;
+                }
+
+                return {
+                    ...item,
+                    costPrice: parseFloat(calculatedCost.toFixed(2)),
+                    price: parseFloat(calculatedPrice.toFixed(2))
+                };
+            });
+        }
+
+        return parsedItems;
+
+    } catch (error: any) {
+        console.error("Smart Import Error details:", error.message || error);
+        // Throw the specific error to the UI
+        throw error;
     }
-
-    return parsedItems;
-
-  } catch (error: any) {
-    console.error("Smart Import Error details:", error.message || error);
-    return [];
-  }
 };
