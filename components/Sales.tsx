@@ -313,38 +313,41 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-             <ShoppingCart className="w-6 h-6 text-emerald-500" /> Sales
+           <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+             <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center">
+               <ShoppingCart className="w-5 h-5 text-white" />
+             </div>
+             Sales
            </h2>
-           <p className="text-slate-500 text-sm">Record new sales and manage transaction details.</p>
+           <p className="text-gray-500 text-sm mt-1">Record new sales and manage transaction details.</p>
         </div>
         
         <div className="flex gap-2">
              <button 
                 onClick={() => setIsSmartSourceOpen(true)}
-                className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-blue-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors shadow-sm"
+                className="bg-white border border-gray-200 text-gray-600 hover:border-brand-600 hover:text-brand-600 px-4 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 transition-all shadow-sm"
             >
-                <Sparkles className="w-4 h-4 text-blue-500" /> 
+                <Sparkles className="w-4 h-4" /> 
                 <span className="hidden sm:inline">Smart Source</span>
             </button>
              <button 
                 onClick={handleEbayClick}
                 disabled={isFetchingEbay}
-                className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-blue-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
+                className="bg-white border border-gray-200 text-gray-600 hover:border-brand-600 hover:text-brand-600 px-4 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 transition-all shadow-sm disabled:opacity-50"
             >
                 <Globe className={`w-4 h-4 ${isFetchingEbay ? 'animate-spin' : ''}`} /> 
                 <span className="hidden sm:inline">{isFetchingEbay ? 'Fetching...' : 'eBay API'}</span>
             </button>
             <button 
                 onClick={() => setIsImportModalOpen(true)}
-                className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-emerald-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors"
+                className="bg-white border border-gray-200 text-gray-600 hover:border-brand-600 hover:text-brand-600 px-4 py-2.5 rounded-xl font-medium text-sm flex items-center gap-2 transition-all shadow-sm"
             >
                 <FileSpreadsheet className="w-4 h-4" /> 
                 <span className="hidden sm:inline">Excel</span>
             </button>
             <button 
                 onClick={() => setIsModalOpen(true)}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-200 transition-all"
+                className="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 shadow-lg shadow-brand-200/50 transition-all"
             >
                 <Plus className="w-5 h-5" /> New Sale
             </button>
@@ -434,23 +437,23 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
        )}
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row gap-4 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
           <div className="relative flex-1">
              <input 
                type="text" 
-               placeholder="Search sales..." 
+               placeholder="Search sales by item or customer..." 
                value={filterQuery}
                onChange={e => setFilterQuery(e.target.value)}
-               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/50"
+               className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-brand-500/10 focus:border-brand-500 transition-all text-sm"
              />
-             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+             <Search className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
           </div>
-          <div className="flex gap-2">
+          <div className="flex p-1 bg-gray-100 rounded-xl">
               {(['All', 'Paid', 'Unpaid'] as const).map(p => (
                   <button 
                     key={p}
                     onClick={() => setFilterPayment(p)}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${filterPayment === p ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                    className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${filterPayment === p ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                   >
                       {p}
                   </button>
@@ -459,63 +462,58 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
       </div>
 
       {/* Sales List Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
             <table className="w-full text-left">
-                <thead className="bg-slate-50 border-b border-slate-200">
+                <thead className="bg-brand-600">
                     <tr>
-                        <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase tracking-wider">Date</th>
-                        <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase tracking-wider">Item & Customer</th>
-                        <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase tracking-wider text-center">Type</th>
-                        <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase tracking-wider text-center">Payment</th>
-                        <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase tracking-wider text-center">Shipping</th>
-                        <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase tracking-wider text-right">Amount</th>
-                        <th className="px-6 py-4 text-sm font-bold text-slate-500 uppercase tracking-wider text-center">Actions</th>
+                        <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider">Product & Buyer</th>
+                        <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider text-center">Transaction Type</th>
+                        <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider text-center">Payment Status</th>
+                        <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider text-center">Shipping Status</th>
+                        <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider text-right">Total Amount</th>
+                        <th className="px-6 py-4 text-xs font-bold text-white uppercase tracking-wider text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-gray-50">
                     {displayedSales.length === 0 ? (
-                        <tr><td colSpan={7} className="p-8 text-center text-slate-400">No sales found matching your filters.</td></tr>
+                        <tr><td colSpan={7} className="p-12 text-center text-gray-400">No sales found matching your filters.</td></tr>
                     ) : (
                         displayedSales.map(sale => (
-                            <tr key={sale.id} className="hover:bg-slate-50 transition-colors">
-                                <td className="px-6 py-5 text-sm text-slate-500 whitespace-nowrap">
+                            <tr key={sale.id} className="hover:bg-gray-50/50 transition-colors group">
+                                <td className="px-6 py-5 text-sm text-gray-500 whitespace-nowrap">
                                     <div className="flex items-center gap-2">
-                                        <Calendar className="w-4 h-4 text-slate-300" />
+                                        <Calendar className="w-4 h-4 text-gray-300" />
                                         {new Date(sale.date).toLocaleDateString()}
                                     </div>
                                 </td>
                                 <td className="px-6 py-5">
-                                    <div className="font-bold text-slate-900 text-base">{sale.itemName}</div>
-                                    <div className="text-sm text-slate-500 flex items-center gap-1">
-                                        Sold to <span className="font-semibold text-slate-700">{sale.customerName}</span>
+                                    <div className="font-bold text-gray-900 text-base mb-0.5">{sale.itemName}</div>
+                                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                                        Sold to <span className="font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-md">{sale.customerName}</span>
                                     </div>
                                 </td>
                                 
-                                {/* TYPE BUTTONS */}
+                                {/* TYPE SELECTOR */}
                                 <td className="px-6 py-5 text-center">
-                                    <div className="flex justify-center gap-1">
-                                        <button 
-                                            onClick={() => updateSaleType(sale.id, 'Sale')}
-                                            className={`w-8 h-8 rounded-lg text-xs font-bold border transition-all ${sale.saleType === 'Sale' ? 'bg-blue-500 text-white border-blue-600 shadow-md' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'}`}
-                                            title="Sale"
+                                    <div className="relative inline-block">
+                                        <select
+                                            value={sale.saleType}
+                                            onChange={(e) => updateSaleType(sale.id, e.target.value as SaleType)}
+                                            className={`appearance-none cursor-pointer pl-3 pr-8 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all focus:outline-none focus:ring-2 focus:ring-offset-1
+                                                ${sale.saleType === 'Sale' 
+                                                    ? 'bg-brand-600 text-white border-brand-600 focus:ring-brand-600' 
+                                                    : sale.saleType === 'Auction' 
+                                                        ? 'bg-brand-400 text-brand-900 border-brand-400 focus:ring-brand-400' 
+                                                        : 'bg-orange-500 text-white border-orange-500 focus:ring-orange-500'
+                                                }`}
                                         >
-                                            S
-                                        </button>
-                                        <button 
-                                            onClick={() => updateSaleType(sale.id, 'Auction')}
-                                            className={`w-8 h-8 rounded-lg text-xs font-bold border transition-all ${sale.saleType === 'Auction' ? 'bg-violet-500 text-white border-violet-600 shadow-md' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'}`}
-                                            title="Auction"
-                                        >
-                                            A
-                                        </button>
-                                        <button 
-                                            onClick={() => updateSaleType(sale.id, 'Firesale')}
-                                            className={`w-8 h-8 rounded-lg text-xs font-bold border transition-all ${sale.saleType === 'Firesale' ? 'bg-orange-500 text-white border-orange-600 shadow-md' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'}`}
-                                            title="Firesale"
-                                        >
-                                            F
-                                        </button>
+                                            <option value="Sale">Sale</option>
+                                            <option value="Auction">Auction</option>
+                                            <option value="Firesale">Firesale</option>
+                                        </select>
+                                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none text-current opacity-70" />
                                     </div>
                                 </td>
 
@@ -523,44 +521,56 @@ const Sales: React.FC<SalesProps> = ({ sales, inventory, setSales, updateInvento
                                 <td className="px-6 py-5 text-center">
                                      <button 
                                         onClick={() => togglePayment(sale.id, sale.paymentStatus)}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center justify-center gap-1 min-w-[80px] mx-auto hover:scale-105 active:scale-95
-                                            ${sale.paymentStatus === PaymentStatus.PAID ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}
+                                        className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all flex items-center justify-center gap-1.5 min-w-[100px] mx-auto hover:shadow-sm active:scale-95
+                                            ${sale.paymentStatus === PaymentStatus.PAID 
+                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+                                                : 'bg-rose-50 text-rose-700 border-rose-100'}
                                         `}
                                      >
-                                        {sale.paymentStatus === PaymentStatus.PAID ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                                        {sale.paymentStatus === PaymentStatus.PAID ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
                                         {sale.paymentStatus}
                                      </button>
                                 </td>
 
-                                {/* SHIPPING BUTTONS (2 Options) */}
+                                {/* SHIPPING STATUS */}
                                 <td className="px-6 py-5 text-center">
-                                    <div className="flex justify-center bg-slate-100 rounded-lg p-1 w-fit mx-auto border border-slate-200">
+                                    <div className="flex justify-center gap-1.5">
                                         <button 
                                             onClick={() => updateStatus(sale.id, SaleStatus.ON_HOLD)}
-                                            className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${sale.status === SaleStatus.ON_HOLD ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                            className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg border transition-all ${
+                                                sale.status === SaleStatus.ON_HOLD 
+                                                    ? 'bg-gray-800 text-white border-gray-800 shadow-sm' 
+                                                    : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200 hover:text-gray-600'
+                                            }`}
                                         >
-                                            Hold
+                                            On Hold
                                         </button>
                                         <button 
-                                            onClick={() => updateStatus(sale.id, SaleStatus.TO_SHIP)}
-                                            className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${sale.status !== SaleStatus.ON_HOLD ? 'bg-cyan-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                            onClick={() => updateStatus(sale.id, SaleStatus.SHIPPED)}
+                                            className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg border transition-all ${
+                                                sale.status === SaleStatus.SHIPPED 
+                                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                                    : sale.status === SaleStatus.TO_SHIP
+                                                        ? 'bg-cyan-600 text-white border-cyan-600 shadow-sm'
+                                                        : 'bg-white text-gray-400 border-gray-100 hover:border-cyan-200 hover:text-cyan-600'
+                                            }`}
                                         >
-                                            {sale.status === SaleStatus.SHIPPED ? 'Shipped' : 'Ship'}
+                                            {sale.status === SaleStatus.SHIPPED ? 'Shipped' : 'To Ship'}
                                         </button>
                                     </div>
                                 </td>
 
-                                <td className="px-6 py-5 text-right font-black text-slate-900 text-lg">
+                                <td className="px-6 py-5 text-right font-black text-gray-900 text-lg">
                                     ₱{sale.totalAmount.toLocaleString()}
                                 </td>
 
                                 <td className="px-6 py-5 text-center">
                                     <button 
                                         onClick={() => handleDelete(sale)}
-                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                        className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
                                         title="Delete Record"
                                     >
-                                        <Trash2 className="w-4 h-4" />
+                                        <Trash2 className="w-4.5 h-4.5" />
                                     </button>
                                 </td>
                             </tr>

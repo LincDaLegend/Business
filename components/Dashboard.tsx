@@ -6,32 +6,36 @@ import {
   Calendar,
   Target,
   TrendingUp,
-  PieChart as PieChartIcon,
-  DollarSign,
-  BarChart as BarChartIcon,
-  Percent,
-  Wallet,
   ArrowUpRight,
   ArrowDownRight,
   Plus,
   Package,
   ShoppingCart,
-  Receipt
+  Receipt,
+  TrendingDown,
+  DollarSign,
+  Wallet,
+  BarChart3,
+  PieChart,
+  Sparkles
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell, AreaChart, Area } from 'recharts';
 
 interface DashboardProps {
   data: AppState;
   setActiveTab: (tab: string) => void;
 }
 
+// Mini sparkline data for cards
+const generateSparkline = (trend: 'up' | 'down') => {
+  const base = trend === 'up' ? [20, 25, 22, 30, 28, 35, 40, 38, 45, 50] : [50, 45, 48, 40, 42, 35, 38, 30, 28, 25];
+  return base.map((v, i) => ({ x: i, y: v + Math.random() * 5 }));
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ data, setActiveTab }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  
-  // Profit Target State (Default 30%)
   const [targetMargin, setTargetMargin] = useState(30.0);
 
-  // Helper to change months
   const changeMonth = (offset: number) => {
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + offset);
@@ -42,24 +46,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, setActiveTab }) => {
   const currentYear = currentDate.getFullYear();
   const monthLabel = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-  // --- YEARLY DATA CALCULATIONS ---
-
-  const yearlyIncome = useMemo(() => {
-    return data.sales
-      .filter(s => new Date(s.date).getFullYear() === currentYear && s.paymentStatus === PaymentStatus.PAID)
-      .reduce((sum, s) => sum + s.totalAmount, 0);
-  }, [data.sales, currentYear]);
-
-  const yearlyCOGS = useMemo(() => {
-    return data.sales
-      .filter(s => new Date(s.date).getFullYear() === currentYear && s.paymentStatus === PaymentStatus.PAID)
-      .reduce((sum, s) => sum + ((s.costPrice + (s.supplyCost || 0) + (s.shippingCost || 0)) * s.quantity), 0);
-  }, [data.sales, currentYear]);
-
-  const yearlyGrossProfit = yearlyIncome - yearlyCOGS;
-
-  // --- FILTER DATA FOR SELECTED MONTH ---
-
+  // --- CALCULATIONS ---
   const monthlyIncome = useMemo(() => {
     return data.sales.filter(s => {
       const d = new Date(s.date);
@@ -74,291 +61,313 @@ const Dashboard: React.FC<DashboardProps> = ({ data, setActiveTab }) => {
       const d = new Date(e.date);
       return d.getMonth() === currentMonth && 
              d.getFullYear() === currentYear;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    });
   }, [data.expenses, currentMonth, currentYear]);
 
-  // Calculations
   const totalRevenue = monthlyIncome.reduce((sum, s) => sum + s.totalAmount, 0);
   const totalCOGS = monthlyIncome.reduce((sum, s) => sum + ((s.costPrice + (s.supplyCost || 0) + (s.shippingCost || 0)) * s.quantity), 0);
   const totalOpExpenses = monthlyExpenses.reduce((sum, e) => sum + e.amount, 0);
   
   const grossProfit = totalRevenue - totalCOGS;
-  const netEarnings = grossProfit - totalOpExpenses; // Bottom line
-  
+  const netEarnings = grossProfit - totalOpExpenses;
   const aggregateMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
 
-  // --- MARGIN VARIANCE CHART DATA ---
+  // Chart data
   const marginVarianceData = useMemo(() => {
-      const types: SaleType[] = ['Sale', 'Auction', 'Firesale'];
+    const types: SaleType[] = ['Sale', 'Auction', 'Firesale'];
+    
+    return types.map(type => {
+      const salesOfType = monthlyIncome.filter(s => s.saleType === type);
+      const revenue = salesOfType.reduce((sum, s) => sum + s.totalAmount, 0);
+      const cogs = salesOfType.reduce((sum, s) => sum + ((s.costPrice + (s.supplyCost || 0) + (s.shippingCost || 0)) * s.quantity), 0);
+      const profit = revenue - cogs;
+      const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
       
-      return types.map(type => {
-          const salesOfType = monthlyIncome.filter(s => s.saleType === type);
-          const revenue = salesOfType.reduce((sum, s) => sum + s.totalAmount, 0);
-          const cogs = salesOfType.reduce((sum, s) => sum + ((s.costPrice + (s.supplyCost || 0) + (s.shippingCost || 0)) * s.quantity), 0);
-          const profit = revenue - cogs;
-          const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
-          
-          return {
-              name: type,
-              margin: parseFloat(margin.toFixed(1)),
-              target: targetMargin,
-              revenue: revenue // for tooltips
-          };
-      });
+      return { name: type, margin: parseFloat(margin.toFixed(1)), target: targetMargin };
+    });
   }, [monthlyIncome, targetMargin]);
 
+  const heldOrdersCount = data.sales.filter(s => s.status === SaleStatus.ON_HOLD).length;
+  const lowStockCount = data.inventory.filter(i => i.quantity < 5).length;
+
+  const formatCurrency = (value: number) => {
+    if (value >= 1000000) return `₱${(value / 1000000).toFixed(2)}M`;
+    if (value >= 1000) return `₱${(value / 1000).toFixed(1)}k`;
+    return `₱${value.toLocaleString()}`;
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500 text-sm mt-1">Track your business performance</p>
+        </div>
+        
+        {/* Date Picker */}
+        <div className="flex items-center bg-white rounded-xl border border-gray-200 shadow-sm">
+          <button 
+            onClick={() => changeMonth(-1)} 
+            className="p-3 hover:bg-gray-50 rounded-l-xl text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <div className="flex items-center gap-2 px-4 py-2">
+            <Calendar className="w-4 h-4 text-brand-600" />
+            <span className="font-medium text-gray-700 text-sm min-w-[120px] text-center">{monthLabel}</span>
+          </div>
+          <button 
+            onClick={() => changeMonth(1)} 
+            className="p-3 hover:bg-gray-50 rounded-r-xl text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
 
-        {/* --- QUICK ACTIONS --- */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button 
-                onClick={() => setActiveTab('inventory')}
-                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-emerald-500 hover:shadow-md transition-all group text-left"
-            >
-                <div className="bg-emerald-50 w-10 h-10 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                    <Plus className="w-5 h-5 text-emerald-600" />
-                </div>
-                <div className="font-bold text-slate-700">Add Inventory</div>
-                <div className="text-xs text-slate-400">Record new stock</div>
-            </button>
-
-            <button 
-                onClick={() => setActiveTab('sales')}
-                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-500 hover:shadow-md transition-all group text-left"
-            >
-                <div className="bg-blue-50 w-10 h-10 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                    <ShoppingCart className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="font-bold text-slate-700">New Sale</div>
-                <div className="text-xs text-slate-400">Record transaction</div>
-            </button>
-
-            <button 
-                onClick={() => setActiveTab('expenses')}
-                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-red-500 hover:shadow-md transition-all group text-left"
-            >
-                <div className="bg-red-50 w-10 h-10 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                    <Receipt className="w-5 h-5 text-red-600" />
-                </div>
-                <div className="font-bold text-slate-700">Log Expense</div>
-                <div className="text-xs text-slate-400">Track spending</div>
-            </button>
-
-             <button 
-                onClick={() => setActiveTab('held-orders')}
-                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-amber-500 hover:shadow-md transition-all group text-left"
-            >
-                <div className="bg-amber-50 w-10 h-10 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                    <Package className="w-5 h-5 text-amber-600" />
-                </div>
-                <div className="font-bold text-slate-700">Held Orders</div>
-                <div className="text-xs text-slate-400">To ship & book</div>
-            </button>
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Revenue Card */}
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center">
+              <DollarSign className="w-6 h-6 text-brand-600" />
+            </div>
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 ${
+              aggregateMargin >= 30 ? 'bg-green-50 text-green-600' : 'bg-amber-50 text-amber-600'
+            }`}>
+              <ArrowUpRight className="w-3 h-3" />
+              {aggregateMargin.toFixed(1)}%
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 font-medium mb-1">Total Revenue</p>
+          <div className="flex items-end justify-between">
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalRevenue)}</p>
+            <div className="w-16 h-10">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={generateSparkline('up')}>
+                  <defs>
+                    <linearGradient id="sparkGreen" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.3}/>
+                      <stop offset="100%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <Area type="monotone" dataKey="y" stroke="#059669" strokeWidth={2} fill="url(#sparkGreen)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
 
-       {/* --- TOP: YEARLY SUMMARY --- */}
-       <div className="bg-white rounded-2xl p-8 text-slate-900 shadow-sm border border-slate-200 relative overflow-hidden">
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
-             <div className="p-2 bg-emerald-50 text-emerald-500 rounded-lg">
-                <PieChartIcon className="w-5 h-5" />
-             </div>
-             <span className="text-xl font-bold tracking-tight">{currentYear} Annual Performance</span>
+        {/* Gross Profit Card */}
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+          <p className="text-sm text-gray-500 font-medium mb-1">Gross Profit</p>
+          <p className={`text-2xl font-bold ${grossProfit >= 0 ? 'text-gray-900' : 'text-red-500'}`}>
+            {formatCurrency(grossProfit)}
+          </p>
+          <p className="text-xs text-gray-400 mt-2">Before operating expenses</p>
+        </div>
+
+        {/* On Hold Card */}
+        <div 
+          className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group" 
+          onClick={() => setActiveTab('held-orders')}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Package className="w-6 h-6 text-amber-600" />
+            </div>
+            {heldOrdersCount > 0 && (
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
+                {heldOrdersCount}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 font-medium mb-1">On Hold</p>
+          <p className="text-2xl font-bold text-gray-900">{heldOrdersCount}</p>
+          <p className="text-xs text-gray-400 mt-2">Packages to ship</p>
+        </div>
+
+        {/* Low Stock Card */}
+        <div 
+          className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group" 
+          onClick={() => setActiveTab('inventory')}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
+              <TrendingDown className="w-6 h-6 text-red-500" />
+            </div>
+            {lowStockCount > 0 && (
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-600">
+                {lowStockCount}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 font-medium mb-1">Low Stock</p>
+          <p className="text-2xl font-bold text-gray-900">{lowStockCount}</p>
+          <p className="text-xs text-gray-400 mt-2">Items to reorder</p>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <button 
+          onClick={() => setActiveTab('inventory')}
+          className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-brand-600 hover:shadow-md transition-all group text-left"
+        >
+          <div className="w-11 h-11 bg-brand-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-md">
+            <Plus className="w-5 h-5 text-white" />
+          </div>
+          <p className="font-semibold text-gray-800">Add Inventory</p>
+          <p className="text-sm text-gray-400 mt-0.5">Record new stock</p>
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('sales')}
+          className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-brand-500 hover:shadow-md transition-all group text-left"
+        >
+          <div className="w-11 h-11 bg-brand-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-md">
+            <ShoppingCart className="w-5 h-5 text-white" />
+          </div>
+          <p className="font-semibold text-gray-800">New Sale</p>
+          <p className="text-sm text-gray-400 mt-0.5">Record transaction</p>
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('expenses')}
+          className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-red-300 hover:shadow-md transition-all group text-left"
+        >
+          <div className="w-11 h-11 bg-red-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-md">
+            <Receipt className="w-5 h-5 text-white" />
+          </div>
+          <p className="font-semibold text-gray-800">Log Expense</p>
+          <p className="text-sm text-gray-400 mt-0.5">Track spending</p>
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('held-orders')}
+          className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-amber-300 hover:shadow-md transition-all group text-left"
+        >
+          <div className="w-11 h-11 bg-amber-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-md">
+            <Package className="w-5 h-5 text-white" />
+          </div>
+          <p className="font-semibold text-gray-800">Process Orders</p>
+          <p className="text-sm text-gray-400 mt-0.5">Ship packages</p>
+        </button>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Statistics Chart */}
+        <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="font-bold text-gray-900">Statistics</h3>
+              <p className="text-sm text-gray-400 mt-0.5">Margin by sale type</p>
+            </div>
+            <div className="flex items-center gap-4 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-brand-600"></div>
+                <span className="text-gray-500">On Target</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-brand-300"></div>
+                <span className="text-gray-500">Below</span>
+              </div>
+            </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 divide-y md:divide-y-0 md:divide-x divide-slate-100">
-            <div className="px-4">
-               <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-2">Total Revenue (YTD)</p>
-               <p className="text-4xl font-semibold text-emerald-500 tracking-tight">₱{yearlyIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-               <p className="text-xs text-slate-400 mt-2 font-medium">Paid Sales Only</p>
-            </div>
-            <div className="px-4 pt-6 md:pt-0">
-               <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-2">Cost of Goods Sold (YTD)</p>
-               <div className="flex flex-col">
-                 <p className="text-4xl font-semibold text-red-400 tracking-tight">₱{yearlyCOGS.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                 <span className="text-[10px] text-slate-400 mt-2 font-medium uppercase">
-                   (Base Cost + Supply + Shipping)
-                 </span>
-               </div>
-            </div>
-            <div className="px-4 pt-6 md:pt-0">
-               <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-2">Product Profit (Gross)</p>
-               <p className={`text-4xl font-semibold tracking-tight ${yearlyGrossProfit >= 0 ? 'text-emerald-500' : 'text-amber-500'}`}>
-                 ₱{yearlyGrossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-               </p>
-               <p className="text-xs text-slate-400 mt-2 font-medium">Before Operating Expenses</p>
-            </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={marginVarianceData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                <YAxis unit="%" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                <Tooltip 
+                  cursor={{ fill: '#f8fafc' }}
+                  contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+                />
+                <ReferenceLine y={targetMargin} stroke="#10b981" strokeDasharray="4 4" strokeWidth={2} />
+                <Bar dataKey="margin" radius={[6, 6, 0, 0]}>
+                  {marginVarianceData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.margin >= entry.target ? '#059669' : '#a7f3d0'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
-      </div>
-      
-      {/* --- CONTROLS --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Date Selector */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-            <h2 className="text-slate-700 font-bold flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-emerald-500" /> Period
-            </h2>
-            <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-200">
-            <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-slate-200 rounded-md transition-all text-slate-500 hover:text-slate-800">
-                <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="w-32 text-center font-bold text-slate-700 text-sm">{monthLabel}</span>
-            <button onClick={() => changeMonth(1)} className="p-2 hover:bg-slate-200 rounded-md transition-all text-slate-500 hover:text-slate-800">
-                <ChevronRight className="w-4 h-4" />
-            </button>
-            </div>
-        </div>
 
-        {/* Target Slider */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2 flex flex-col justify-center relative overflow-hidden">
-            <div className="relative z-10 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <Target className="w-5 h-5 text-emerald-500" />
-                    <span className="font-bold text-slate-700">Product Margin Target</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <input 
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={targetMargin}
-                        onChange={(e) => setTargetMargin(parseFloat(e.target.value) || 0)}
-                        className="w-20 bg-slate-50 border border-slate-300 rounded px-2 py-1 text-right font-semibold text-emerald-600 outline-none focus:ring-1 focus:ring-emerald-500 transition-all"
-                    />
-                    <span className="text-lg font-bold text-emerald-500">%</span>
-                </div>
+        {/* Financial Summary */}
+        <div className="space-y-4">
+          {/* Margin Target */}
+          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-brand-600" />
+                <span className="font-semibold text-gray-800">Margin Target</span>
+              </div>
+              <span className="text-2xl font-bold text-brand-600">{targetMargin}%</span>
             </div>
             <input 
-                type="range" 
-                min="5" 
-                max="80" 
-                step="0.1"
-                value={targetMargin} 
-                onChange={(e) => setTargetMargin(parseFloat(e.target.value))} 
-                className="w-full mt-3 h-2 bg-emerald-100 rounded-lg appearance-none cursor-pointer accent-emerald-500 hover:accent-emerald-600 transition-all"
+              type="range" 
+              min="5" 
+              max="80" 
+              value={targetMargin} 
+              onChange={(e) => setTargetMargin(parseFloat(e.target.value))} 
+              className="w-full h-2 bg-gray-100 rounded-full appearance-none cursor-pointer accent-brand-500"
             />
-        </div>
-      </div>
+          </div>
 
-      {/* --- VISUAL OVERVIEW SECTION --- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* 1. Margin Variance Chart + Net Total */}
-        <div className="md:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-80 flex flex-row gap-6">
-             <div className="flex-1 flex flex-col">
-                <h3 className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-6 flex items-center gap-2">
-                    <BarChartIcon className="w-4 h-4 text-emerald-500" /> Margin Variance by Sale Type
-                </h3>
-                <div className="flex-1">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={marginVarianceData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12, fontWeight: 600}} />
-                            <YAxis unit="%" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 11}} />
-                            <Tooltip 
-                                cursor={{fill: '#f1f5f9', opacity: 0.5}}
-                                contentStyle={{backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#0f172a', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}}
-                                itemStyle={{color: '#334155'}}
-                            />
-                            <ReferenceLine y={targetMargin} label={{ value: 'Target', position: 'insideTopRight', fill: '#34d399', fontSize: 10, fontWeight: 700 }} stroke="#10b981" strokeDasharray="3 3" />
-                            <Bar dataKey="margin" name="Actual Margin %" radius={[4, 4, 0, 0]}>
-                                {
-                                marginVarianceData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.margin >= entry.target ? '#10b981' : '#f43f5e'} />
-                                ))
-                                }
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-             </div>
-             
-             {/* Net Total Margin Card - Clean Emerald Theme */}
-             <div className="w-48 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-col justify-center items-center text-center p-4">
-                 <div className="flex flex-col gap-1 mb-2">
-                     <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Net Total Margin</span>
-                 </div>
-                 
-                 <div className="flex flex-col items-center justify-center my-auto">
-                     <div className="flex items-baseline gap-1">
-                        <span className="text-5xl font-semibold tracking-tighter text-emerald-600">
-                            {aggregateMargin.toFixed(2)}
-                        </span>
-                        <span className="text-xl font-bold text-emerald-600/60">%</span>
-                     </div>
-                     <span className="text-[10px] text-emerald-600/70 mt-1 font-medium">(Combined Types)</span>
-                 </div>
-
-                 <div className="mt-4 pt-4 border-t border-emerald-200/50 w-full flex justify-center">
-                    {aggregateMargin >= targetMargin ? (
-                        <div className="text-xs font-bold px-3 py-1.5 rounded-full inline-block bg-white text-emerald-600 shadow-sm border border-emerald-200">
-                            On Track
-                        </div>
-                    ) : (
-                        <div className="text-xs font-bold px-3 py-1.5 rounded-full inline-block bg-white text-red-500 shadow-sm border border-red-200">
-                            Below Target
-                        </div>
-                    )}
-                 </div>
-             </div>
-        </div>
-
-        {/* 2. Financial Health Cards (Progress Bars) */}
-        <div className="grid grid-rows-3 gap-4 h-80">
-            {/* Revenue */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 flex flex-col justify-center shadow-sm">
-                <div className="flex justify-between items-end mb-3">
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Product Costs (COGS)</span>
-                    <span className="text-lg font-medium text-slate-900">₱{totalCOGS.toFixed(2)}</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                    <div 
-                        className="bg-slate-400 h-2.5 rounded-full" 
-                        style={{ width: totalRevenue > 0 ? `${Math.min(100, (totalCOGS/totalRevenue)*100)}%` : '0%' }}
-                    ></div>
-                </div>
+          {/* Product Costs */}
+          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-sm text-gray-500 font-medium">Product Costs</span>
+              <span className="text-lg font-bold text-gray-900">₱{totalCOGS.toLocaleString()}</span>
             </div>
-            
-            {/* Costs & Expenses */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 flex flex-col justify-center shadow-sm">
-                <div className="flex justify-between items-end mb-3">
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Operating Expenses</span>
-                    <span className="text-lg font-medium text-slate-900">₱{totalOpExpenses.toFixed(2)}</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                    <div 
-                        className="bg-red-400 h-2.5 rounded-full" 
-                        style={{ width: totalRevenue > 0 ? `${Math.min(100, (totalOpExpenses/totalRevenue)*100)}%` : '0%' }}
-                    ></div>
-                </div>
+            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+              <div 
+                className="bg-brand-600 h-2 rounded-full transition-all duration-500" 
+                style={{ width: totalRevenue > 0 ? `${Math.min(100, (totalCOGS/totalRevenue)*100)}%` : '0%' }}
+              />
             </div>
+          </div>
 
-            {/* Net Profit - Cleaned */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex flex-col">
-                <div className="flex-1 flex flex-col justify-center items-center relative z-10 px-5">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Net Earnings</span>
-                        {netEarnings >= 0 ? 
-                            <span className="bg-emerald-100 text-emerald-600 text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <ArrowUpRight className="w-3 h-3" /> Profit
-                            </span>
-                        : 
-                            <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <ArrowDownRight className="w-3 h-3" /> Loss
-                            </span>
-                        }
-                    </div>
-                    <div className={`text-3xl font-bold tracking-tight ${netEarnings >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                        ₱{netEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
-                </div>
-                
-                {/* Background Decoration */}
-                <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-slate-50 rounded-full z-0 opacity-50" />
+          {/* Operating Expenses */}
+          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-sm text-gray-500 font-medium">Operating Expenses</span>
+              <span className="text-lg font-bold text-gray-900">₱{totalOpExpenses.toLocaleString()}</span>
             </div>
+            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+              <div 
+                className="bg-brand-400 h-2 rounded-full transition-all duration-500" 
+                style={{ width: totalRevenue > 0 ? `${Math.min(100, (totalOpExpenses/totalRevenue)*100)}%` : '0%' }}
+              />
+            </div>
+          </div>
+
+          {/* Net Earnings */}
+          <div className={`rounded-2xl p-5 ${netEarnings >= 0 ? 'bg-brand-600' : 'bg-red-500'} text-white shadow-md`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-white/80" />
+                <span className="font-medium text-white/80">Net Earnings</span>
+              </div>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/20">
+                {netEarnings >= 0 ? 'Profit' : 'Loss'}
+              </span>
+            </div>
+            <p className="text-3xl font-bold">
+              ₱{Math.abs(netEarnings).toLocaleString()}
+            </p>
+          </div>
         </div>
       </div>
     </div>

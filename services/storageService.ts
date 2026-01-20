@@ -1,6 +1,6 @@
 import { AppState, InventoryItem, Sale, Expense, SaleStatus, PaymentStatus } from '../types.ts';
 
-const STORAGE_KEY = 'biztrack_data_v3'; // Bumped version
+const STORAGE_KEY = 'biztrack_data_v4'; // Bumped version for new features
 
 // The user provided Google Apps Script Web App URL
 const DEFAULT_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyuUUUwB6SLKvI9Vayv-DDTux-Mt1JyVYsdkxj41niHRMBshjkEHNyhp7aQGpFDmdNYbw/exec';
@@ -41,7 +41,24 @@ const defaultState: AppState = {
   },
   googleSheetsUrl: DEFAULT_SHEETS_URL,
   ebayUserToken: '',
-  autoSyncEnabled: false
+  autoSyncEnabled: false,
+  
+  // NEW: Default values for new features
+  customers: [],
+  invoices: [],
+  notifications: [
+    {
+      id: 'welcome',
+      type: 'info',
+      title: 'Welcome to Bogart Business!',
+      message: 'Your dashboard is ready. Start by adding inventory or recording sales.',
+      read: false,
+      createdAt: new Date().toISOString()
+    }
+  ],
+  darkMode: false,
+  currency: 'PHP',
+  exchangeRate: 56.50 // Default PHP to USD rate
 };
 
 export const loadState = (): AppState => {
@@ -93,6 +110,26 @@ export const loadState = (): AppState => {
       loadedState.ebayUserToken = '';
     }
     
+    // NEW: Migration for new features
+    if (!loadedState.customers) {
+      loadedState.customers = [];
+    }
+    if (!loadedState.invoices) {
+      loadedState.invoices = [];
+    }
+    if (!loadedState.notifications) {
+      loadedState.notifications = defaultState.notifications;
+    }
+    if (loadedState.darkMode === undefined) {
+      loadedState.darkMode = false;
+    }
+    if (!loadedState.currency) {
+      loadedState.currency = 'PHP';
+    }
+    if (!loadedState.exchangeRate) {
+      loadedState.exchangeRate = 56.50;
+    }
+    
     return loadedState;
   } catch (e) {
     console.error("Failed to load state", e);
@@ -106,4 +143,18 @@ export const saveState = (state: AppState) => {
   } catch (e) {
     console.error("Failed to save state", e);
   }
+};
+
+// NEW: Helper to generate unique IDs
+export const generateId = (): string => {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
+// NEW: Helper to generate invoice numbers
+export const generateInvoiceNumber = (): string => {
+  const date = new Date();
+  const year = date.getFullYear().toString().slice(-2);
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `INV-${year}${month}-${random}`;
 };

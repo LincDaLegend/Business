@@ -517,14 +517,14 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
          <div className="flex gap-2">
             <button 
                 onClick={() => setIsSmartSourceOpen(true)}
-                className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-blue-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors shadow-sm"
+                className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-brand-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors shadow-sm"
             >
-                <Sparkles className="w-4 h-4 text-blue-500" /> 
+                <Sparkles className="w-4 h-4 text-brand-500" /> 
                 <span className="hidden sm:inline">Smart Source</span>
             </button>
             <button 
                 onClick={() => openModal()}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-200 transition-all"
+                className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-brand-200 transition-all"
             >
                 <Plus className="w-5 h-5" /> Add Item
             </button>
@@ -538,7 +538,7 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
                    <div className="flex justify-between items-center mb-6">
                        <div>
                            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                               <Sparkles className="w-5 h-5 text-emerald-500" /> Import Breakdown
+                               <Sparkles className="w-5 h-5 text-brand-500" /> Import Breakdown
                            </h3>
                            <p className="text-sm text-slate-500">Verify items and distribute costs (Peanut Butter Spread).</p>
                        </div>
@@ -592,9 +592,9 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
                                <tr>
                                    <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase w-1/3">Item Name</th>
                                    <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center w-16">Qty</th>
-                                   <th className="px-4 py-3 text-xs font-bold text-blue-600 uppercase w-32">Item Cost ($)</th>
+                                   <th className="px-4 py-3 text-xs font-bold text-brand-600 uppercase w-32">Item Cost ($)</th>
                                    <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center w-8"><ArrowRight className="w-4 h-4 mx-auto"/></th>
-                                   <th className="px-4 py-3 text-xs font-bold text-emerald-600 uppercase w-36 text-right">Net Unit Cost (₱)</th>
+                                   <th className="px-4 py-3 text-xs font-bold text-brand-600 uppercase w-36 text-right">Net Unit Cost (₱)</th>
                                    <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase text-center w-10"></th>
                                </tr>
                            </thead>
@@ -610,7 +610,7 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
                                                    copy[idx].name = e.target.value;
                                                    setPreviewItems(copy);
                                                }}
-                                               className="w-full bg-transparent outline-none font-medium text-slate-700 text-sm border-b border-transparent focus:border-blue-300"
+                                               className="w-full bg-transparent outline-none font-medium text-slate-700 text-sm border-b border-transparent focus:border-brand-300"
                                            />
                                        </td>
                                        <td className="px-4 py-2 text-center">
@@ -719,10 +719,10 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
                                         placeholder="e.g. 100 or 100+50"
                                         value={importCostUSD}
                                         onChange={e => setImportCostUSD(e.target.value)}
-                                        className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-blue-500"
+                                        className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-brand-500"
                                     />
                                     {importCostUSD.includes('+') && (
-                                        <div className="absolute right-3 top-2.5 flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                        <div className="absolute right-3 top-2.5 flex items-center gap-1 text-[10px] font-bold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">
                                             <Equal className="w-3 h-3" /> {calculateTotalUSDCost()}
                                         </div>
                                     )}
@@ -736,7 +736,7 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
                                         type="number"
                                         value={exchangeRate}
                                         onChange={e => setExchangeRate(e.target.value)}
-                                        className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-blue-500"
+                                        className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-brand-500"
                                     />
                                 </div>
                             </div>
@@ -745,7 +745,7 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
                         {/* 1. File Upload Area */}
                         <div 
                             onClick={() => fileInputRef.current?.click()}
-                            className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:bg-slate-50 hover:border-blue-400 transition-colors cursor-pointer"
+                            className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:bg-slate-50 hover:border-brand-400 transition-colors cursor-pointer"
                         >
                                 <input 
                                     type="file" 
@@ -784,7 +784,7 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
                             value={smartInput}
                             onChange={(e) => setSmartInput(e.target.value)}
                             placeholder="Paste text or item IDs here..."
-                            className="w-full h-24 bg-slate-50 border border-slate-300 rounded-xl p-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none"
+                            className="w-full h-24 bg-slate-50 border border-slate-300 rounded-xl p-4 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-none"
                         />
                     </div>
 
@@ -793,7 +793,7 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
                          <button 
                             onClick={processSmartImport}
                             disabled={isProcessingSmart || (!smartInput.trim() && smartFiles.length === 0)}
-                            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-xl font-bold transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
+                            className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2 rounded-xl font-bold transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
                         >
                             <Sparkles className={`w-4 h-4 ${isProcessingSmart ? 'animate-spin' : ''}`} />
                             {isProcessingSmart ? 'Analyzing...' : 'Process'}
@@ -815,7 +815,7 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
           </div>
           <div 
             onClick={() => setIsSupplyModalOpen(true)}
-            className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center hover:border-emerald-400 cursor-pointer transition-colors"
+            className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center hover:border-brand-400 cursor-pointer transition-colors"
           >
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Supplies Left</span>
               <span className={`text-2xl font-black ${supplies.totalQuantity < 20 ? 'text-red-500' : 'text-slate-900'}`}>
@@ -824,10 +824,10 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
           </div>
           <div 
              onClick={() => setIsShippingModalOpen(true)}
-             className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center hover:border-blue-400 cursor-pointer transition-colors"
+             className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center hover:border-brand-400 cursor-pointer transition-colors"
           >
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Active Batches</span>
-              <span className="text-2xl font-black text-blue-600">{shippingBatches.length} Batches</span>
+              <span className="text-2xl font-black text-brand-600">{shippingBatches.length} Batches</span>
           </div>
       </div>
 
@@ -870,7 +870,7 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
                                 </td>
                                 <td className="px-6 py-4 text-right text-sm text-slate-500 font-medium">₱{item.costPrice ? item.costPrice.toFixed(2) : '0.00'}</td>
                                 <td className="px-6 py-4 text-center flex justify-center gap-2">
-                                    <button onClick={() => openModal(item)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
+                                    <button onClick={() => openModal(item)} className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
                                         <Edit2 className="w-4 h-4" />
                                     </button>
                                     <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
@@ -904,20 +904,20 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
                             placeholder="Qty Added" 
                             value={calcQty}
                             onChange={e => setCalcQty(parseFloat(e.target.value) || '')}
-                            className="w-1/2 p-2 bg-white border border-slate-300 rounded-lg text-sm outline-none focus:border-emerald-500"
+                            className="w-1/2 p-2 bg-white border border-slate-300 rounded-lg text-sm outline-none focus:border-brand-500"
                         />
                         <input 
                             type="number" 
                             placeholder="Total Cost" 
                             value={calcTotalCost}
                             onChange={e => setCalcTotalCost(parseFloat(e.target.value) || '')}
-                            className="w-1/2 p-2 bg-white border border-slate-300 rounded-lg text-sm outline-none focus:border-emerald-500"
+                            className="w-1/2 p-2 bg-white border border-slate-300 rounded-lg text-sm outline-none focus:border-brand-500"
                         />
                     </div>
                     <button 
                         onClick={applyRestockCalculation}
                         disabled={!calcQty || !calcTotalCost}
-                        className="w-full bg-emerald-500 text-white font-bold py-2 rounded-lg text-sm hover:bg-emerald-600 disabled:opacity-50"
+                        className="w-full bg-brand-600 text-white font-bold py-2 rounded-lg text-sm hover:bg-brand-700 disabled:opacity-50"
                     >
                         Add Stock & Average Cost
                     </button>
@@ -926,17 +926,17 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
                 <form onSubmit={handleSupplySave} className="space-y-4">
                      <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Total Quantity</label>
-                        <input type="number" value={manageTotalQty} onChange={e => setManageTotalQty(parseFloat(e.target.value))} className="w-full border border-slate-300 rounded-xl p-3 outline-none focus:border-emerald-500 font-bold text-slate-800" />
+                        <input type="number" value={manageTotalQty} onChange={e => setManageTotalQty(parseFloat(e.target.value))} className="w-full border border-slate-300 rounded-xl p-3 outline-none focus:border-brand-500 font-bold text-slate-800" />
                      </div>
                      <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Avg Cost Per Unit (₱)</label>
-                        <input type="number" step="0.01" value={manageCostPerUnit} onChange={e => setManageCostPerUnit(parseFloat(e.target.value))} className="w-full border border-slate-300 rounded-xl p-3 outline-none focus:border-emerald-500 font-bold text-slate-800" />
+                        <input type="number" step="0.01" value={manageCostPerUnit} onChange={e => setManageCostPerUnit(parseFloat(e.target.value))} className="w-full border border-slate-300 rounded-xl p-3 outline-none focus:border-brand-500 font-bold text-slate-800" />
                      </div>
                      <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Units Used Per Item</label>
-                        <input type="number" value={manageAllocation} onChange={e => setManageAllocation(parseFloat(e.target.value))} className="w-full border border-slate-300 rounded-xl p-3 outline-none focus:border-emerald-500 font-bold text-slate-800" />
+                        <input type="number" value={manageAllocation} onChange={e => setManageAllocation(parseFloat(e.target.value))} className="w-full border border-slate-300 rounded-xl p-3 outline-none focus:border-brand-500 font-bold text-slate-800" />
                      </div>
-                     <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-sm transition-all mt-2">Save Changes</button>
+                     <button type="submit" className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl shadow-sm transition-all mt-2">Save Changes</button>
                 </form>
            </div>
         </div>
@@ -951,25 +951,25 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
                         <button onClick={() => setIsShippingModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
                   </div>
                   
-                  <div className="flex gap-2 mb-6">
+                   <div className="flex gap-2 mb-6">
                       <input 
                         type="text" 
                         placeholder="Batch Code (e.g. JUNE-A)" 
                         value={newBatchCode}
                         onChange={e => setNewBatchCode(e.target.value.toUpperCase())}
-                        className="flex-1 border border-slate-300 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500 uppercase font-bold"
+                        className="flex-1 border border-slate-300 rounded-xl px-4 py-2 text-sm outline-none focus:border-brand-500 uppercase font-bold"
                       />
                       <input 
                         type="number" 
                         placeholder="Fee ₱" 
                         value={newBatchFee}
                         onChange={e => setNewBatchFee(parseFloat(e.target.value) || '')}
-                        className="w-24 border border-slate-300 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500 font-bold"
+                        className="w-24 border border-slate-300 rounded-xl px-4 py-2 text-sm outline-none focus:border-brand-500 font-bold"
                       />
                       <button 
                         onClick={handleAddBatch}
                         disabled={!newBatchCode || newBatchFee === ''}
-                        className="bg-blue-500 text-white px-4 py-2 rounded-xl font-bold hover:bg-blue-600 disabled:opacity-50"
+                        className="bg-brand-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-brand-700 disabled:opacity-50"
                       >
                           <Plus className="w-5 h-5" />
                       </button>
@@ -1081,7 +1081,7 @@ const Inventory: React.FC<InventoryProps> = ({ items, setItems, supplies, setSup
                     </div>
                 </div>
 
-                <button type="submit" className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-200 transition-all mt-4">
+                <button type="submit" className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-200 transition-all mt-4">
                     {editingItem ? 'Save Changes' : 'Add to Inventory'}
                 </button>
              </form>

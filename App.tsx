@@ -7,17 +7,26 @@ import Expenses from './components/Expenses.tsx';
 import HeldOrders from './components/HeldOrders.tsx';
 import LbcBooking from './components/LbcBooking.tsx';
 import Settings from './components/Settings.tsx';
+import Customers from './components/Customers.tsx';
+import Analytics from './components/Analytics.tsx';
+import Invoices from './components/Invoices.tsx';
+import ProfitCalculator from './components/ProfitCalculator.tsx';
 import { loadState, saveState } from './services/storageService.ts';
-import { AppState, InventoryItem, Sale, Expense, ShippingBatch, SaleStatus } from './types.ts';
+import { analyzeBusinessData } from './services/geminiService.ts';
+import { AppState, InventoryItem, Sale, Expense, ShippingBatch, SaleStatus, Customer, Invoice, Notification } from './types.ts';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [data, setData] = useState<AppState>(loadState());
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiInsights, setAiInsights] = useState<string | null>(null);
   const isFirstRender = useRef(true);
   
   // State to handle deep-linking to LBC Booking for a specific customer
   const [lbcPreselectedCustomer, setLbcPreselectedCustomer] = useState<string | null>(null);
+
+
 
   // Check URL params for deep linking actions on mount
   useEffect(() => {
@@ -35,6 +44,30 @@ const App: React.FC = () => {
   useEffect(() => {
     saveState(data);
   }, [data]);
+
+  // Generate low stock notifications
+  useEffect(() => {
+    const lowStockItems = data.inventory.filter(i => i.quantity < 5);
+    
+    if (lowStockItems.length > 0) {
+      const existingIds = new Set(data.notifications.filter(n => n.type === 'low_stock').map(n => n.id));
+      
+      lowStockItems.forEach(item => {
+        const notifId = `low_stock_${item.id}`;
+        if (!existingIds.has(notifId)) {
+          addNotification({
+            id: notifId,
+            type: 'low_stock',
+            title: 'Low Stock Alert',
+            message: `${item.name} has only ${item.quantity} left in stock.`,
+            read: false,
+            createdAt: new Date().toISOString(),
+            actionUrl: 'inventory'
+          });
+        }
+      });
+    }
+  }, [data.inventory]);
 
   const updateInventory = (newInventory: InventoryItem[]) => {
     setData(prev => ({ ...prev, inventory: newInventory }));
@@ -64,6 +97,29 @@ const App: React.FC = () => {
     setData(prev => ({ ...prev, categories: newCategories }));
   };
 
+  const updateCustomers = (newCustomers: Customer[]) => {
+    setData(prev => ({ ...prev, customers: newCustomers }));
+  };
+
+  const updateInvoices = (newInvoices: Invoice[]) => {
+    setData(prev => ({ ...prev, invoices: newInvoices }));
+  };
+
+  const updateNotifications = (newNotifications: Notification[]) => {
+    setData(prev => ({ ...prev, notifications: newNotifications }));
+  };
+
+  const addNotification = (notification: Notification) => {
+    setData(prev => ({
+      ...prev,
+      notifications: [notification, ...prev.notifications.slice(0, 49)] // Keep max 50
+    }));
+  };
+
+  const setDarkMode = (value: boolean) => {
+    setData(prev => ({ ...prev, darkMode: value }));
+  };
+
   // Full state restore/update from Settings
   const handleImport = (importedData: AppState) => {
       setData(importedData);
@@ -83,15 +139,12 @@ const App: React.FC = () => {
   };
 
   // Atomic delete operation to ensure consistency
-  // Uses functional update pattern to avoid stale state closures
   const deleteSale = (saleId: string) => {
     setData(prevData => {
         const saleToDelete = prevData.sales.find(s => s.id === saleId);
         
-        // If sale not found, return previous state without changes
         if (!saleToDelete) return prevData;
 
-        // Restore inventory
         const updatedInventory = prevData.inventory.map(item => {
             if (item.id === saleToDelete.itemId) {
                 return { ...item, quantity: item.quantity + saleToDelete.quantity };
@@ -99,7 +152,6 @@ const App: React.FC = () => {
             return item;
         });
 
-        // Remove sale
         const updatedSales = prevData.sales.filter(s => s.id !== saleId);
 
         return {
@@ -166,7 +218,14 @@ const App: React.FC = () => {
         });
 
         if (!data.autoSyncEnabled) {
-            alert("Sync sent! Please check your Google Sheet.");
+            addNotification({
+              id: `sync_${Date.now()}`,
+              type: 'success',
+              title: 'Sync Complete',
+              message: 'Your data has been synced to Google Sheets.',
+              read: false,
+              createdAt: new Date().toISOString()
+            });
         }
     } catch (error) {
         console.error(error);
@@ -178,16 +237,40 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Auto Sync Logic ---
+  // AI Analysis
+  const handleAnalyze = async () => {
+    setIsAnalyzing(true);
+    setAiInsights(null);
+    
+    try {
+      const insights = await analyzeBusinessData(data);
+      setAiInsights(insights);
+      setActiveTab('dashboard');
+      
+      addNotification({
+        id: `ai_${Date.now()}`,
+        type: 'info',
+        title: 'AI Analysis Complete',
+        message: 'Your business insights are ready.',
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      setAiInsights('Unable to generate insights. Please check your API key in Settings.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Auto Sync Logic
   useEffect(() => {
-    // Skip the first render to prevent syncing on initial load
     if (isFirstRender.current) {
         isFirstRender.current = false;
         return;
     }
 
     if (data.autoSyncEnabled && data.googleSheetsUrl) {
-        // Debounce: Wait 4 seconds after last change before syncing
         const timeoutId = setTimeout(() => {
             console.log("Auto-syncing data...");
             handleSync();
@@ -196,8 +279,6 @@ const App: React.FC = () => {
         return () => clearTimeout(timeoutId);
     }
   }, [data]); 
-  // Dependency on 'data' ensures this runs whenever inventory, sales, etc change.
-  // Note: 'handleSync' closes over the current 'data' scope, which is correct.
 
   // Handler to navigate to LBC booking with a customer selected
   const handleNavigateToLbc = (customerName: string) => {
@@ -208,7 +289,34 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard data={data} setActiveTab={setActiveTab} />;
+        return (
+          <div className="space-y-6">
+            {/* AI Insights Banner */}
+            {aiInsights && (
+              <div className="bg-gradient-to-r from-brand-600 to-brand-500 rounded-2xl p-6 text-white shadow-soft">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-white font-bold flex items-center gap-1">✨ AI Insights</span>
+                  <button 
+                    onClick={() => setAiInsights(null)}
+                    className="ml-auto text-white/60 hover:text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="prose prose-sm prose-invert max-w-none">
+                  <pre className="whitespace-pre-wrap text-sm text-purple-100 font-sans">{aiInsights}</pre>
+                </div>
+              </div>
+            )}
+            {isAnalyzing && (
+              <div className="bg-brand-50 dark:bg-brand-900/20 rounded-2xl p-6 text-center">
+                <div className="animate-spin w-8 h-8 border-3 border-brand-600 border-t-transparent rounded-full mx-auto mb-3"></div>
+                <p className="text-brand-700 font-medium">Analyzing your business data...</p>
+              </div>
+            )}
+            <Dashboard data={data} setActiveTab={setActiveTab} />
+          </div>
+        );
       case 'inventory':
         return <Inventory 
           items={data.inventory} 
@@ -251,6 +359,30 @@ const App: React.FC = () => {
           categories={data.categories}
           setCategories={updateCategories}
         />;
+      case 'customers':
+        return <Customers
+          customers={data.customers}
+          setCustomers={updateCustomers}
+          sales={data.sales}
+        />;
+      case 'analytics':
+        return <Analytics data={data} />;
+      case 'invoices':
+        return <Invoices
+          invoices={data.invoices}
+          setInvoices={updateInvoices}
+          customers={data.customers}
+          sales={data.sales}
+        />;
+      case 'calculator':
+        return (
+          <div className="max-w-md mx-auto">
+            <ProfitCalculator 
+              currency={data.currency} 
+              exchangeRate={data.exchangeRate} 
+            />
+          </div>
+        );
       case 'settings':
         return <Settings 
           data={data}
@@ -260,7 +392,6 @@ const App: React.FC = () => {
         return <Dashboard data={data} setActiveTab={setActiveTab} />;
     }
   };
-
   return (
     <Layout 
         activeTab={activeTab} 
@@ -268,6 +399,9 @@ const App: React.FC = () => {
         onSync={handleSync} 
         isSyncing={isSyncing} 
         autoSyncEnabled={data.autoSyncEnabled}
+        notifications={data.notifications}
+        setNotifications={updateNotifications}
+        onAnalyze={handleAnalyze}
     >
       {renderContent()}
     </Layout>

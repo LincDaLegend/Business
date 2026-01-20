@@ -1,5 +1,26 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Package, ShoppingCart, Menu, X, Box, Receipt, PackageOpen, Truck, Settings, RefreshCw, CloudCheck, Cloud } from 'lucide-react';
+import { 
+  LayoutDashboard, 
+  Package, 
+  ShoppingCart, 
+  Menu, 
+  X, 
+  Receipt, 
+  PackageOpen, 
+  Truck, 
+  Settings, 
+  RefreshCw, 
+  CloudCheck,
+  Sparkles,
+  Bell,
+  Users,
+  BarChart3,
+  Calculator,
+  FileText,
+  Search
+} from 'lucide-react';
+import NotificationCenter from './NotificationCenter.tsx';
+import { Notification } from '../types.ts';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -8,54 +29,89 @@ interface LayoutProps {
   onSync: () => void;
   isSyncing: boolean;
   autoSyncEnabled: boolean;
+  notifications: Notification[];
+  setNotifications: (notifications: Notification[]) => void;
+  onAnalyze?: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onSync, isSyncing, autoSyncEnabled }) => {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
+interface NavItem {
+  id: string;
+  label: string;
+  icon: React.ComponentType<any>;
+  badge?: number;
+}
 
-  const navItems = [
+const Layout: React.FC<LayoutProps> = ({ 
+  children, 
+  activeTab, 
+  setActiveTab, 
+  onSync, 
+  isSyncing, 
+  autoSyncEnabled,
+  notifications,
+  setNotifications,
+  onAnalyze
+}) => {
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const unreadNotifications = notifications.filter(n => !n.read).length;
+
+  const navItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'sales', label: 'Sales', icon: ShoppingCart },
-    { id: 'held-orders', label: 'Packages on Hold', icon: PackageOpen },
+    { id: 'held-orders', label: 'On Hold', icon: PackageOpen, badge: 3 },
     { id: 'expenses', label: 'Expenses', icon: Receipt },
-    { id: 'lbc-booking', label: 'LBC Integration', icon: Truck },
-    { id: 'settings', label: 'Settings & Data', icon: Settings },
+    { id: 'customers', label: 'Customers', icon: Users },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'invoices', label: 'Invoices', icon: FileText },
+    { id: 'calculator', label: 'Calculator', icon: Calculator },
+    { id: 'lbc-booking', label: 'Shipping', icon: Truck },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (
-    <div className="min-h-screen flex bg-slate-50 text-slate-900 font-sans">
+    <div className="min-h-screen flex bg-gray-50 font-['Inter']">
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Clean White Design */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 transform transition-transform duration-200 ease-in-out shadow-xl lg:shadow-none
+        fixed lg:static inset-y-0 left-0 z-50 w-[260px] bg-white border-r border-gray-100
+        transform transition-transform duration-300 ease-out flex flex-col shadow-sm
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="h-20 lg:h-24 flex items-center justify-center px-6 border-b border-slate-100 relative">
-            <div className="flex items-center justify-center gap-2">
-                <div className="w-8 h-8 lg:w-9 lg:h-9 bg-emerald-600 rounded-lg flex items-center justify-center text-white shadow-md shadow-emerald-200">
-                    <Box className="w-5 h-5" />
-                </div>
-                <div className="flex flex-col items-start -space-y-0.5 pt-1">
-                    <span className="text-xl lg:text-2xl text-slate-900 leading-none font-extrabold tracking-tight font-['Outfit']">BOGART</span>
-                    <span className="text-[9px] lg:text-[10px] font-bold text-emerald-600 uppercase leading-tight tracking-[0.15em] font-['Outfit']">MAKES BANDS</span>
-                </div>
+        {/* Logo */}
+        <div className="h-[70px] flex items-center px-6 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center shadow-md">
+              <span className="text-white font-bold text-lg">B</span>
             </div>
-            <button onClick={() => setSidebarOpen(false)} className="ml-auto lg:hidden text-slate-400 hover:text-slate-600 absolute right-4 top-6">
-              <X className="w-6 h-6" />
-            </button>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 tracking-tight">Bogart</h1>
+              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Business</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setSidebarOpen(false)} 
+            className="ml-auto lg:hidden p-2 text-gray-400 hover:bg-gray-100 rounded-lg"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        <div className="h-full flex flex-col">
-          <nav className="flex-1 p-4 space-y-2 mt-4">
-            {navItems.map((item) => (
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+          {navItems.map((item) => {
+            const isActive = activeTab === item.id;
+
+            return (
               <button
                 key={item.id}
                 onClick={() => {
@@ -63,80 +119,134 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, onSy
                   setSidebarOpen(false);
                 }}
                 className={`
-                  w-full flex items-center gap-3 px-4 py-3.5 rounded-lg text-sm font-semibold transition-all duration-200
-                  ${activeTab === item.id 
-                    ? 'bg-slate-800 text-white shadow-md shadow-slate-200' 
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}
+                  w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+                  ${isActive
+                    ? 'bg-brand-600 text-white shadow-md' 
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
                 `}
               >
-                <item.icon className={`w-5 h-5 ${activeTab === item.id ? 'text-emerald-400' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                {item.label}
+                <div className="flex items-center gap-3">
+                  <item.icon className={`w-[18px] h-[18px] ${isActive ? 'text-white' : 'text-gray-400'}`} />
+                  <span>{item.label}</span>
+                </div>
+                {item.badge && item.badge > 0 && (
+                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                    isActive ? 'bg-brand-400 text-brand-900' : 'bg-brand-100 text-brand-700'
+                  }`}>
+                    {item.badge}
+                  </span>
+                )}
               </button>
-            ))}
-          </nav>
+            );
+          })}
+        </nav>
 
-          <div className="p-4 border-t border-slate-100 pb-8">
-            <div className="bg-slate-50 rounded-xl p-4 text-center border border-slate-200">
-              <p className="text-xs text-slate-400 font-medium">Business Manager v1.6</p>
+        {/* AI Card */}
+        <div className="p-4 border-t border-gray-100">
+          <div className="bg-gradient-to-br from-brand-600 to-brand-500 rounded-2xl p-4 text-white">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-4 h-4 text-brand-200" />
+              <span className="text-xs font-semibold">AI Insights</span>
             </div>
+            <p className="text-[11px] text-brand-100 mb-3">Get smart business recommendations</p>
+            <button 
+              onClick={onAnalyze}
+              className="w-full py-2.5 text-xs font-semibold bg-white text-brand-600 rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
+            >
+              Analyze Now
+            </button>
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
+      <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 shadow-sm">
+        <header className="h-[70px] bg-white border-b border-gray-100 flex items-center justify-between px-6 sticky top-0 z-30">
           <div className="flex items-center gap-4">
-             <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-500 hover:text-slate-700">
-                <Menu className="w-6 h-6" />
-             </button>
-             
-             {/* Mobile Logo */}
-             <div className="lg:hidden flex items-center gap-2">
-                  <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white shadow-sm">
-                      <Box className="w-4 h-4" />
-                  </div>
-                  <div className="flex flex-col items-start -space-y-0.5 pt-1">
-                      <span className="text-xl text-slate-900 leading-none font-extrabold tracking-tight font-['Outfit']">BOGART</span>
-                      <span className="text-[9px] font-bold text-emerald-600 uppercase leading-tight tracking-[0.15em] font-['Outfit']">MAKES BANDS</span>
-                  </div>
-             </div>
+            <button 
+              onClick={() => setSidebarOpen(true)} 
+              className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            {/* Search Bar */}
+            <div className="hidden md:flex items-center">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="w-64 pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+                />
+              </div>
+            </div>
           </div>
           
-          {/* Sync Status / Button */}
-          {autoSyncEnabled ? (
-             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-100">
-                 {isSyncing ? (
-                     <>
-                        <RefreshCw className="w-4 h-4 text-emerald-500 animate-spin" />
-                        <span className="text-xs font-bold text-emerald-600">Auto-Syncing...</span>
-                     </>
-                 ) : (
-                     <>
-                        <CloudCheck className="w-4 h-4 text-slate-400" />
-                        <span className="text-xs font-bold text-slate-400">Cloud Active</span>
-                     </>
-                 )}
-             </div>
-          ) : (
-             <button 
+          {/* Right Actions */}
+          <div className="flex items-center gap-3">
+            {/* Notification Bell */}
+            <button 
+              onClick={() => setShowNotifications(true)}
+              className="relative p-2.5 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadNotifications > 0 && (
+                <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                  {unreadNotifications}
+                </span>
+              )}
+            </button>
+
+            {/* Sync Button */}
+            {autoSyncEnabled ? (
+              <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl ${isSyncing ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-500'}`}>
+                {isSyncing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span className="text-xs font-medium">Syncing...</span>
+                  </>
+                ) : (
+                  <>
+                    <CloudCheck className="w-4 h-4" />
+                    <span className="text-xs font-medium">Synced</span>
+                  </>
+                )}
+              </div>
+            ) : (
+              <button 
                 onClick={onSync}
                 disabled={isSyncing}
-                className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg font-bold text-sm transition-colors disabled:opacity-50 border border-blue-100"
+                className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl font-medium text-sm transition-all disabled:opacity-50 shadow-sm"
               >
                 <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">{isSyncing ? 'Syncing...' : 'Sync Data'}</span>
+                <span>{isSyncing ? 'Syncing...' : 'Sync'}</span>
               </button>
-          )}
+            )}
+
+            {/* User Avatar */}
+            <div className="w-10 h-10 bg-gradient-to-br from-brand-600 to-brand-500 rounded-xl flex items-center justify-center text-white font-semibold text-sm cursor-pointer hover:shadow-md transition-shadow">
+              B
+            </div>
+          </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar">
-          <div className="max-w-6xl mx-auto">
+        {/* Page Content */}
+        <div className="flex-1 overflow-y-auto p-6 lg:p-8 bg-gray-50">
+          <div className="max-w-7xl mx-auto">
             {children}
           </div>
         </div>
       </main>
+
+      {/* Notification Center */}
+      <NotificationCenter
+        notifications={notifications}
+        setNotifications={setNotifications}
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+      />
     </div>
   );
 };

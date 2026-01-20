@@ -39,6 +39,7 @@ export interface Sale {
   saleType: SaleType;
   date: string;
   shippingDetails?: string;
+  customerId?: string;
 }
 
 export interface Expense {
@@ -56,6 +57,67 @@ export interface ShippingBatch {
   date: string;
 }
 
+// NEW: Customer Interface for CRM
+export interface Customer {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  notes?: string;
+  totalPurchases: number;
+  totalSpent: number;
+  lastPurchaseDate?: string;
+  createdAt: string;
+  tags?: string[];
+}
+
+// NEW: Invoice Interface
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  customerId: string;
+  customerName: string;
+  items: InvoiceItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  status: 'draft' | 'sent' | 'viewed' | 'paid' | 'overdue';
+  dueDate: string;
+  createdAt: string;
+  paidAt?: string;
+  notes?: string;
+}
+
+export interface InvoiceItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+// NEW: Notification Interface
+export interface Notification {
+  id: string;
+  type: 'low_stock' | 'payment_received' | 'shipping_reminder' | 'info' | 'warning' | 'success';
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+  actionUrl?: string;
+}
+
+// NEW: Analytics Types
+export interface ProductAnalytics {
+  productId: string;
+  productName: string;
+  totalSold: number;
+  totalRevenue: number;
+  totalProfit: number;
+  profitMargin: number;
+  averageDaysToSell: number;
+}
+
 export interface AppState {
   inventory: InventoryItem[];
   sales: Sale[];
@@ -71,4 +133,12 @@ export interface AppState {
   googleSheetsUrl?: string;
   ebayUserToken?: string;
   autoSyncEnabled: boolean;
+  
+  // NEW: Additional state
+  customers: Customer[];
+  invoices: Invoice[];
+  notifications: Notification[];
+  darkMode: boolean;
+  currency: 'PHP' | 'USD';
+  exchangeRate: number; // PHP to USD
 }

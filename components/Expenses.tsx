@@ -215,7 +215,7 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, setExpenses, budgets, set
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Receipt className="w-6 h-6 text-emerald-500" /> Expenses
+            <Receipt className="w-6 h-6 text-brand-500" /> Expenses
           </h2>
           <p className="text-slate-500 text-sm">Track your business outflows and overheads.</p>
         </div>
@@ -233,7 +233,7 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, setExpenses, budgets, set
            
            <button 
              onClick={openModal}
-             className="flex-1 md:flex-none bg-emerald-500 hover:bg-emerald-600 transition-all text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm"
+             className="flex-1 md:flex-none bg-brand-600 hover:bg-brand-700 transition-all text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm"
            >
              <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add Expense</span>
            </button>
@@ -266,7 +266,7 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, setExpenses, budgets, set
             {/* Standard progress bar for summary */}
             <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                 <div 
-                    className={`h-full rounded-full transition-all ${yearlyBudgetSummary.totalYearlySpent > yearlyBudgetSummary.totalYearlyBudget ? 'bg-red-500' : 'bg-emerald-500'}`} 
+                    className={`h-full rounded-full transition-all ${yearlyBudgetSummary.totalYearlySpent > yearlyBudgetSummary.totalYearlyBudget ? 'bg-red-500' : 'bg-brand-500'}`} 
                     style={{ width: yearlyBudgetSummary.totalYearlyBudget > 0 ? `${Math.min(100, (yearlyBudgetSummary.totalYearlySpent / yearlyBudgetSummary.totalYearlyBudget) * 100)}%` : '0%' }}
                 />
             </div>
@@ -287,7 +287,7 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, setExpenses, budgets, set
       {/* CHART SECTION: MONTHLY BREAKDOWN */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-96">
           <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-6 flex items-center gap-2">
-              <BarChartIcon className="w-4 h-4 text-emerald-500" /> Monthly Spending Breakdown ({currentYear})
+              <BarChartIcon className="w-4 h-4 text-brand-500" /> Monthly Spending Breakdown ({currentYear})
           </h3>
           <ResponsiveContainer width="100%" height="85%">
               <BarChart data={monthlyChartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
@@ -322,11 +322,11 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, setExpenses, budgets, set
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
         <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Target className="w-5 h-5 text-emerald-500" /> Monthly Budget Tracker
+                <Target className="w-5 h-5 text-brand-500" /> Monthly Budget Tracker
             </h3>
             <button 
                 onClick={() => setIsAddCategoryOpen(true)}
-                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                className="text-xs font-bold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
             >
                 <PlusCircle className="w-3.5 h-3.5" /> Add Category
             </button>
@@ -340,11 +340,11 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, setExpenses, budgets, set
                     value={newCategoryName}
                     onChange={e => setNewCategoryName(e.target.value)}
                     placeholder="Enter category name..."
-                    className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-brand-500"
                     autoFocus
                 />
                 <button type="button" onClick={() => setIsAddCategoryOpen(false)} className="px-3 py-2 text-sm font-bold text-slate-500 hover:text-slate-700">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-bold hover:bg-emerald-600">Save</button>
+                <button type="submit" className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-bold hover:bg-brand-700">Save</button>
             </form>
         )}
 
@@ -376,7 +376,7 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, setExpenses, budgets, set
                              {/* Progress Section */}
                              <div>
                                 <div className="flex justify-between text-xs font-bold mb-1.5 uppercase tracking-wider">
-                                    <span className={isNegativeState ? 'text-red-500' : 'text-emerald-600'}>
+                                    <span className={isNegativeState ? 'text-red-500' : 'text-brand-600'}>
                                         {percentage.toFixed(0)}% Consumed
                                     </span>
                                     <span className={isNegativeState ? 'text-red-500' : 'text-slate-400'}>
@@ -388,7 +388,7 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, setExpenses, budgets, set
                                 </div>
                                 <div className="h-4 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
                                     <div 
-                                        className={`h-full rounded-full transition-all duration-500 ${isNegativeState ? 'bg-red-500' : 'bg-emerald-500'}`} 
+                                        className={`h-full rounded-full transition-all duration-500 ${isNegativeState ? 'bg-red-500' : 'bg-brand-500'}`} 
                                         style={{ width: `${Math.min(100, percentage)}%` }}
                                     />
                                 </div>
@@ -415,7 +415,7 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, setExpenses, budgets, set
                                         <input 
                                             type="number" 
                                             min="0"
-                                            className="w-24 text-right text-lg font-bold text-slate-800 bg-transparent outline-none border-b border-dashed border-slate-300 focus:border-emerald-500 transition-colors"
+                                            className="w-24 text-right text-lg font-bold text-slate-800 bg-transparent outline-none border-b border-dashed border-slate-300 focus:border-brand-500 transition-colors"
                                             value={budgets[key] !== undefined ? budgets[key] : ''}
                                             placeholder="0"
                                             onChange={(e) => handleBudgetChange(cat, e.target.value)}
@@ -457,7 +457,7 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, setExpenses, budgets, set
                        <button
                             key={c} 
                             onClick={() => setCategoryFilter(c)}
-                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${categoryFilter === c ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${categoryFilter === c ? 'bg-brand-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                        >
                            {c}
                        </button>
@@ -541,7 +541,7 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, setExpenses, budgets, set
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-0 overflow-hidden border border-slate-200">
-            <div className="p-5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white">
+            <div className="p-5 bg-gradient-to-r from-brand-600 to-brand-500 text-white">
                 <h3 className="text-xl font-bold flex items-center gap-2">
                     <Receipt className="w-6 h-6" /> Log Expense
                 </h3>
